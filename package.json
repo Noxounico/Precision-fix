@@ -1,0 +1,20 @@
+{
+  "name": "precisionfix",
+  "version": "1.0.0",
+  "description": "Otimizador de mouse, teclado e FiveM para Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.precisionfix.app",
+    "productName": "PrecisionFix",
+    "files": ["main.js", "preload.js", "tweaks.js", "index.html"],
+    "win": { "target": "portable", "requestedExecutionLevel": "asInvoker" }
+  }
+}
