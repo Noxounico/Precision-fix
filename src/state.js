@@ -7,6 +7,15 @@ export async function loadState(file) {
     for (const account of Object.values(state.accounts)) {
       if (!account || typeof account.live !== 'boolean' || !Array.isArray(account.videos) || !account.videos.every(id => typeof id === 'string')) throw Error('invalid');
     }
+    if (state.xp !== undefined) {
+      if (!state.xp || typeof state.xp !== 'object' || Array.isArray(state.xp)) throw Error('invalid');
+      for (const members of Object.values(state.xp)) {
+        if (!members || typeof members !== 'object' || Array.isArray(members)) throw Error('invalid');
+        for (const record of Object.values(members)) {
+          if (!Number.isSafeInteger(record.xp) || record.xp < 0 || !Number.isFinite(record.lastAwardAt)) throw Error('invalid');
+        }
+      }
+    }
     return state;
   } catch (error) {
     if (error.code === 'ENOENT') return { version: 1, accounts: {} };

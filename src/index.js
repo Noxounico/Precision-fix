@@ -4,11 +4,14 @@ import { readConfig } from './config.js';
 import { loadState, saveState } from './state.js';
 import { Monitor } from './monitor.js';
 import { tiktok } from './tiktok.js';
-import { registerDivulgar, handleDivulgar } from './divulgar.js';
+import { handleDivulgar } from './divulgar.js';
+import { registerCommands } from './commands.js';
+import { handleTickets } from './tickets.js';
+import { awardXp, handleXp } from './xp.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const channels = {};
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
@@ -38,9 +41,9 @@ client.once(Events.ClientReady, async () => {
   try {
     const guild = await client.guilds.fetch(config.guild);
     try {
-      await registerDivulgar(guild);
-      console.log('Comando /divulgar registado neste servidor.');
-    } catch (error) { report('Registo de /divulgar (verifique autorização applications.commands)', error); }
+      await registerCommands(guild);
+      console.log('Comandos /divulgar, /painel, /rank e /top registados neste servidor.');
+    } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     const me = await guild.members.fetchMe();
     for (const [kind, id] of Object.entries(config.channels)) {
       const channel = await guild.channels.fetch(id);
@@ -78,13 +81,21 @@ client.on(Events.GuildMemberRemove, async member => {
   } catch (error) { report('Mensagem de saída', error); }
 });
 client.on(Events.InteractionCreate, async interaction => {
-  try { await handleDivulgar(interaction, config); }
-  catch (error) {
-    report('Comando /divulgar', error);
-    if (interaction.isChatInputCommand() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: 'Não consegui publicar a divulgação. Verifica as permissões do bot neste canal.', flags: 64 }).catch(() => {});
-    }
+  try {
+    if (await handleDivulgar(interaction, config)) return;
+    if (await handleXp(interaction, config, state)) return;
+    await handleTickets(interaction, config);
   }
+  catch (error) {
+    report('Comando ou botão', error);
+    const content = 'Não consegui concluir esta ação. Verifica as permissões do bot e a configuração.';
+    if (interaction.deferred && !interaction.replied) await interaction.editReply({ content }).catch(() => {});
+    else if (!interaction.replied) await interaction.reply({ content, flags: 64 }).catch(() => {});
+  }
+});
+client.on(Events.MessageCreate, message => {
+  void awardXp(message, config, state, s => saveState(config.stateFile, s))
+    .catch(error => report('Guardar XP', error));
 });
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {

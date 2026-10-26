@@ -84,3 +84,24 @@ A foto predefinida de `/divulgar` usa o link Discord fornecido pelo proprietári
 No arranque, o bot aplica o banner fornecido pelo proprietário ao seu perfil global do Discord. `BOT_BANNER_URL` pode substituir o link predefinido. O token continua apenas no alojamento. A mensagem “Banner do perfil do bot atualizado.” confirma que a API aceitou a alteração; sem essa mensagem não se deve assumir que o banner mudou.
 
 O estado guarda a URL e o hash do banner aplicado para evitar alterações repetidas após reiniciar. A falha de download ou da API é registada e não impede o resto do bot de arrancar. O link de anexo do Discord pode expirar: se isso ocorrer antes da aplicação, forneça um novo link em `BOT_BANNER_URL` e reinicie. Depois de aplicado com sucesso, o banner é guardado pelo Discord no perfil.
+
+## Todos os comandos
+
+- `/divulgar`: publica TikTok, Instagram e foto. Requer **Gerir servidor**.
+- `/painel`: publica um painel com **Abrir ticket** no canal atual. Requer **Gerir servidor**. Qualquer membro com acesso ao painel pode clicar para abrir o seu ticket privado.
+- `/rank [usuario]`: mostra nível, XP e posição. Disponível aos membros.
+- `/top`: mostra os dez membros com mais XP. Disponível aos membros.
+
+Os quatro comandos são registados/atualizados no arranque, preservando comandos alheios. Autorize `applications.commands` se o Discord não os mostrar. Não é necessário Message Content Intent para o XP: o bot usa apenas os eventos de mensagens do servidor, sem ler ou guardar o conteúdo.
+
+### XP
+
+Cada membro ganha 15 XP por mensagem elegível, no máximo uma vez por minuto, independentemente do canal. Bots, webhooks e outros servidores não contam. O nível é `floor(sqrt(XP / 100))`. A contagem começa quando esta versão entra em execução; mensagens antigas não são contadas. `data/state.json` guarda os pontos e o intervalo entre ganhos. Preserve o volume `/app/data` entre deploys para não perder o ranking.
+
+### Tickets
+
+O bot precisa de **Gerir canais**, **Gerir cargos** (para editar as permissões privadas dos canais), **Ver canais**, **Enviar mensagens**, **Ler histórico de mensagens** e **Anexar ficheiros**. Não precisa de administrador. O canal criado é privado para o autor, bot, administradores do servidor e, se configurado, o cargo `TICKET_SUPPORT_ROLE_ID`. Sem esse cargo, só administradores atendem os tickets. O cargo não pode ser `@everyone` nem um cargo gerido por uma integração.
+
+Só pode haver um ticket aberto por membro; os canais com o marcador no tópico são reconhecidos mesmo após reiniciar. O autor, quem tem **Gerir servidor** e a equipa configurada podem clicar em **Fechar ticket**. O fecho mantém as mensagens e o acesso de leitura do autor, impede novas mensagens desse autor e permite-lhe abrir outro ticket. A equipa pode continuar a escrever no canal fechado. Não há eliminação automática de canais nem transcrições externas.
+
+Valide o painel, a privacidade com uma conta normal e o XP no alojamento depois do deploy. Os testes simulam a API Discord; não verificam as permissões reais do servidor.

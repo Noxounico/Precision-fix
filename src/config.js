@@ -17,7 +17,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());
   if (missing.length) throw new Error(`Falta configurar: ${missing.join(', ')}`);
-  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID']) {
+  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_SUPPORT_ROLE_ID']) {
     if (env[key] && !/^\d{17,20}$/.test(env[key])) throw new Error(`${key}: ID Discord inválido`);
   }
   if (env.DIVULGAR_IMAGE_URL) {
@@ -41,6 +41,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
+    ticketSupportRole: env.TICKET_SUPPORT_ROLE_ID || null,
     instagram: env.INSTAGRAM_USERNAME || null,
     divulgarImage: env.DIVULGAR_IMAGE_URL || null,
     banner: env.BOT_BANNER_URL || null,
