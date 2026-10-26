@@ -7,6 +7,7 @@ const defaults = Object.freeze({
   LIVE_CHANNEL_ID: '1560785984482836621',
   VIDEO_CHANNEL_ID: '1564086426969182329',
   TIKTOK_USERNAME: 'noxdu7',
+  INSTAGRAM_USERNAME: '_.rafaeldu7',
 });
 export function readConfig(env = process.env, { requireToken = true } = {}) {
   env = { ...defaults, ...Object.fromEntries(Object.entries(env).filter(([, value]) => typeof value === 'string' && value.trim() !== '')) };

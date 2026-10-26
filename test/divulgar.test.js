@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PermissionsBitField, PermissionFlagsBits } from 'discord.js';
+import { readConfig } from '../src/config.js';
 import { buildDivulgacao, handleDivulgar, registerDivulgar } from '../src/divulgar.js';
 
 test('cartão só tem TikTok e Instagram, com barra azul e imagem', () => {
@@ -54,4 +55,15 @@ test('registo preserva outros comandos e atualiza apenas divulgar', async () => 
   guild.commands.fetch = async () => ({ find: () => undefined });
   await registerDivulgar(guild);
   assert.deepEqual(edits[1], ['create', 'divulgar']);
+});
+
+test('divulgar sem opções usa o Instagram do proprietário', async () => {
+  const config = readConfig({ DISCORD_TOKEN: 'test' });
+  assert.equal(config.instagram, '_.rafaeldu7');
+  const request = interaction();
+  request.guildId = config.guild;
+  request.options.getString = () => null;
+  await handleDivulgar(request, config);
+  const fields = request.replies[0].embeds[0].toJSON().fields;
+  assert.equal(fields[1].value, '➡️ https://www.instagram.com/_.rafaeldu7/');
 });
