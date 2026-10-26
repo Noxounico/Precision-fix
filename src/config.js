@@ -1,5 +1,15 @@
 import 'dotenv/config';
+// Public server/profile settings supplied by the owner. Never store tokens here.
+const defaults = Object.freeze({
+  GUILD_ID: '1562226507571789966',
+  WELCOME_CHANNEL_ID: '1560785968024522984',
+  LEAVE_CHANNEL_ID: '1560785974173237369',
+  LIVE_CHANNEL_ID: '1560785984482836621',
+  VIDEO_CHANNEL_ID: '1564086426969182329',
+  TIKTOK_USERNAME: 'noxdu7',
+});
 export function readConfig(env = process.env, { requireToken = true } = {}) {
+  env = { ...defaults, ...Object.fromEntries(Object.entries(env).filter(([, value]) => typeof value === 'string' && value.trim() !== '')) };
   const required = ['GUILD_ID', 'WELCOME_CHANNEL_ID', 'LEAVE_CHANNEL_ID', 'LIVE_CHANNEL_ID', 'VIDEO_CHANNEL_ID', 'TIKTOK_USERNAME'];
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());

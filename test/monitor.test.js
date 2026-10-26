@@ -56,3 +56,16 @@ test('validação rejeita configuração ausente, IDs inválidos e polling exces
   assert.throws(() => readConfig({ ...env, GUILD_ID: 'invalid' }), /ID Discord/);
   assert.throws(() => readConfig({ ...env, LIVE_POLL_SECONDS: '1' }), /mínimo/);
 });
+
+test('deploy com apenas o token usa os canais e perfil do proprietário', () => {
+  const config = readConfig({ DISCORD_TOKEN: 'test', GUILD_ID: '', TIKTOK_USERNAME: ' ' });
+  assert.equal(config.guild, '1562226507571789966');
+  assert.deepEqual(config.channels, {
+    welcome: '1560785968024522984', leave: '1560785974173237369',
+    live: '1560785984482836621', video: '1564086426969182329',
+  });
+  assert.equal(config.username, 'noxdu7');
+  assert.equal(readConfig({ DISCORD_TOKEN: 'test', GUILD_ID: '123456789012345678', TIKTOK_USERNAME: 'outroperfil' }).guild, '123456789012345678');
+  assert.equal(readConfig({ DISCORD_TOKEN: 'test', TIKTOK_USERNAME: 'outroperfil' }).username, 'outroperfil');
+  assert.throws(() => readConfig({}), /Falta configurar: DISCORD_TOKEN$/);
+});

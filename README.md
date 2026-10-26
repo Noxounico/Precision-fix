@@ -17,6 +17,8 @@ No Windows, o executável fica em `.venv\Scripts\yt-dlp.exe`; no Linux local, `.
 
 ## Configurar o Discord
 
+O servidor, os quatro canais e o perfil @noxdu7 já têm valores predefinidos em `src/config.js`. No alojamento deste bot basta fornecer `DISCORD_TOKEN`; variáveis de ambiente não vazias podem substituir os valores públicos. O token nunca tem valor predefinido.
+
 1. No Discord Developer Portal, crie uma aplicação e um bot. Ative **Server Members Intent** na página Bot. Não precisa de Message Content Intent.
 2. Convide o bot pelo OAuth2 URL Generator, scope `bot`, com **View Channels** e **Send Messages**. Dê acesso aos quatro canais. Não precisa de administrador.
 3. Ative o modo de programador no Discord e copie o ID do servidor e dos canais para `.env`: `GUILD_ID`, `WELCOME_CHANNEL_ID`, `LEAVE_CHANNEL_ID`, `LIVE_CHANNEL_ID`, `VIDEO_CHANNEL_ID`.
