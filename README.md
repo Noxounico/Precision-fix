@@ -78,3 +78,9 @@ O bot precisa de **Enviar mensagens** e **Inserir links (Embed Links)** no canal
 Endereços `blob:` do WhatsApp são locais à sessão do navegador e não servem como URL de imagem no Discord. Para usar uma foto, selecione o ficheiro na opção `imagem` do comando `/divulgar` diretamente no Discord.
 
 A foto predefinida de `/divulgar` usa o link Discord fornecido pelo proprietário. O download foi bloqueado pelo proxy desta máquina; a imagem não está incluída como ficheiro no repositório. Links assinados de anexos podem expirar: nesse caso, atualize `DIVULGAR_IMAGE_URL` com uma URL HTTPS acessível ou forneça um anexo na opção `imagem`.
+
+## Banner do perfil do bot
+
+No arranque, o bot aplica o banner fornecido pelo proprietário ao seu perfil global do Discord. `BOT_BANNER_URL` pode substituir o link predefinido. O token continua apenas no alojamento. A mensagem “Banner do perfil do bot atualizado.” confirma que a API aceitou a alteração; sem essa mensagem não se deve assumir que o banner mudou.
+
+O estado guarda a URL e o hash do banner aplicado para evitar alterações repetidas após reiniciar. A falha de download ou da API é registada e não impede o resto do bot de arrancar. O link de anexo do Discord pode expirar: se isso ocorrer antes da aplicação, forneça um novo link em `BOT_BANNER_URL` e reinicie. Depois de aplicado com sucesso, o banner é guardado pelo Discord no perfil.

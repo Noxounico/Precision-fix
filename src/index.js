@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
+import { applyBanner } from './profile.js';
 import { readConfig } from './config.js';
 import { loadState, saveState } from './state.js';
 import { Monitor } from './monitor.js';
@@ -30,6 +31,10 @@ async function poll(kind, interval) {
   }
 }
 client.once(Events.ClientReady, async () => {
+  // Profile updates must not prevent server features from starting.
+  void applyBanner(client.user, config.banner, state, s => saveState(config.stateFile, s))
+    .then(changed => { if (changed) console.log('Banner do perfil do bot atualizado.'); })
+    .catch(error => report('Atualização do banner (verifique se BOT_BANNER_URL ainda é acessível)', error));
   try {
     const guild = await client.guilds.fetch(config.guild);
     try {
