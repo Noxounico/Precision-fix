@@ -1,7 +1,7 @@
 import 'dotenv/config';
 // Public server/profile settings supplied by the owner. Never store tokens here.
 const defaults = Object.freeze({
-  GUILD_ID: '1562226507571789966',
+  GUILD_ID: '1560784472083800298',
   WELCOME_CHANNEL_ID: '1560785968024522984',
   LEAVE_CHANNEL_ID: '1560785974173237369',
   LIVE_CHANNEL_ID: '1560785984482836621',

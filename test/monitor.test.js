@@ -59,7 +59,7 @@ test('validação rejeita configuração ausente, IDs inválidos e polling exces
 
 test('deploy com apenas o token usa os canais e perfil do proprietário', () => {
   const config = readConfig({ DISCORD_TOKEN: 'test', GUILD_ID: '', TIKTOK_USERNAME: ' ' });
-  assert.equal(config.guild, '1562226507571789966');
+  assert.equal(config.guild, '1560784472083800298');
   assert.deepEqual(config.channels, {
     welcome: '1560785968024522984', leave: '1560785974173237369',
     live: '1560785984482836621', video: '1564086426969182329',
