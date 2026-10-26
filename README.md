@@ -107,3 +107,5 @@ Só pode haver um ticket aberto por membro; os canais com o marcador no tópico 
 Valide o painel, a privacidade com uma conta normal e o XP no alojamento depois do deploy. Os testes simulam a API Discord; não verificam as permissões reais do servidor.
 
 **Antes deste deploy:** ative **Message Content Intent** em Discord Developer Portal → aplicação → Bot. Sem autorização para esse intent, o Discord pode recusar a ligação. `MESSAGE_CONTENT_INTENT=false` permite arrancar sem o intent, mas bloqueia o fecho com transcrição para não produzir um arquivo incompleto. As permissões de Ler histórico, Enviar mensagens e Anexar ficheiros também são necessárias. Não há envio de transcrições para canais ou pessoas fora dos destinos pedidos.
+
+O painel, a receção no ticket e os recibos das transcrições usam cartões brancos, ícone do servidor quando disponível e botões cinzentos. O painel utiliza o banner do bot; execute `/painel` novamente para publicar o visual novo. Os painéis e mensagens já enviados não são editados automaticamente. O bot também precisa de Inserir links no canal de arquivo para os cartões das transcrições.

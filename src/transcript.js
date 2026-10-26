@@ -1,9 +1,10 @@
+import { transcriptCard } from './ticket-ui.js';
 import { AttachmentBuilder, PermissionFlagsBits as P } from 'discord.js';
 
 export function supportOverwrites(guild, botId, roleIds, owner, closed = false) {
   const list = [
     { id: guild.id, deny: [P.ViewChannel] },
-    { id: botId, allow: [P.ViewChannel, P.SendMessages, P.ReadMessageHistory, P.AttachFiles, P.ManageChannels] },
+    { id: botId, allow: [P.ViewChannel, P.SendMessages, P.ReadMessageHistory, P.AttachFiles, P.EmbedLinks, P.ManageChannels] },
     ...roleIds.map(id => ({ id, allow: [P.ViewChannel, P.SendMessages, P.ReadMessageHistory, P.AttachFiles] })),
   ];
   if (owner) list.push({ id: owner, allow: [P.ViewChannel, P.ReadMessageHistory, P.AttachFiles, ...(closed ? [] : [P.SendMessages])], deny: closed ? [P.SendMessages] : [] });
@@ -58,13 +59,13 @@ export async function deliverTranscript(interaction, config, ownerId) {
   await archive.permissionOverwrites.set(supportOverwrites(interaction.guild, me.id, config.ticketSupportRoles));
   const parts = await transcriptParts(interaction.channel, ownerId, interaction.user.id);
   const files = () => parts.map((buffer, index) => new AttachmentBuilder(buffer, { name: `ticket-${interaction.channel.id}-${index + 1}.txt` }));
-  const content = `Transcrição do ticket ${interaction.channel.id} · autor <@${ownerId}> · fechado por <@${interaction.user.id}>.`;
+  const summary = transcriptCard(interaction.guild, interaction.channel.id, ownerId, interaction.user.id);
   const archiveFiles = files();
-  for (let i = 0; i < archiveFiles.length; i += 10) await archive.send({ content, files: archiveFiles.slice(i, i + 10), allowedMentions: { parse: [] } });
+  for (let i = 0; i < archiveFiles.length; i += 10) await archive.send({ embeds: [summary], files: archiveFiles.slice(i, i + 10), allowedMentions: { parse: [] } });
   try {
     const owner = await interaction.client.users.fetch(ownerId);
     const dmFiles = files();
-    for (let i = 0; i < dmFiles.length; i += 10) await owner.send({ content: `Aqui está a transcrição do teu ticket ${interaction.channel.id}.`, files: dmFiles.slice(i, i + 10), allowedMentions: { parse: [] } });
+    for (let i = 0; i < dmFiles.length; i += 10) await owner.send({ embeds: [transcriptCard(interaction.guild, interaction.channel.id, ownerId, interaction.user.id, true)], files: dmFiles.slice(i, i + 10), allowedMentions: { parse: [] } });
     return { dmSent: true };
   } catch { return { dmSent: false }; }
 }

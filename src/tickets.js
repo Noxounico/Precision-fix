@@ -1,10 +1,11 @@
+import { ticketPanel, ticketWelcome } from './ticket-ui.js';
 import { supportOverwrites, deliverTranscript } from './transcript.js';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
 
 export const painelCommand = new SlashCommandBuilder().setName('painel')
   .setDescription('Envia o painel de tickets para este canal.')
   .setDefaultMemberPermissions(P.ManageGuild);
-const buttons = (id, label, style) => [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style))];
+const buttons = (id, label, style) => [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(id).setLabel(label).setEmoji(id === 'tickets:open' ? '🎫' : '🔒').setStyle(style))];
 const opening = new Set();
 const closing = new Set();
 const ticketOwner = channel => channel?.topic?.match(/^precision-ticket:(\d+)$/)?.[1];
@@ -25,8 +26,7 @@ export async function handleTickets(interaction, config) {
     if (!has(interaction.appPermissions, P.SendMessages, P.EmbedLinks)) {
       await reply('Preciso de Enviar mensagens e Inserir links neste canal.'); return true;
     }
-    await interaction.reply({ embeds: [new EmbedBuilder().setColor(0xffffff).setTitle('🎫 Atendimento')
-      .setDescription('Precisas de ajuda? Carrega em **Abrir ticket** para falar em privado com a equipa.')],
+    await interaction.reply({ embeds: [ticketPanel(interaction.guild, config.banner)],
       components: buttons('tickets:open', 'Abrir ticket', ButtonStyle.Secondary), allowedMentions: { parse: [] } });
     return true;
   }
@@ -55,7 +55,7 @@ export async function handleTickets(interaction, config) {
         reason: `Ticket solicitado pelo membro ${interaction.user.id}`,
       });
       await interaction.editReply({ content: `Ticket aberto: <#${channel.id}>.`, allowedMentions: { parse: [] } });
-      await channel.send({ content: `<@${interaction.user.id}> descreve aqui o que precisas. A equipa irá ajudar-te.`,
+      await channel.send({ embeds: [ticketWelcome(interaction.guild, interaction.user.id, config.ticketSupportRoles)],
         components: buttons('tickets:close', 'Fechar ticket', ButtonStyle.Secondary), allowedMentions: { parse: [] } });
     } finally { opening.delete(key); }
     return true;
