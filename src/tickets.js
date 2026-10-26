@@ -1,3 +1,4 @@
+import { supportOverwrites, deliverTranscript } from './transcript.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
 
 export const painelCommand = new SlashCommandBuilder().setName('painel')
@@ -42,16 +43,11 @@ export async function handleTickets(interaction, config) {
       const channels = await interaction.guild.channels.fetch();
       const existing = channels.find(channel => ticketOwner(channel) === interaction.user.id);
       if (existing) { await interaction.editReply({ content: `Já tens um ticket aberto: <#${existing.id}>.`, allowedMentions: { parse: [] } }); return true; }
-      if (config.ticketSupportRole) {
-        const role = await interaction.guild.roles.fetch(config.ticketSupportRole);
+      for (const id of config.ticketSupportRoles) {
+        const role = await interaction.guild.roles.fetch(id);
         if (!role || role.id === interaction.guild.id || role.managed) throw Error('Cargo de suporte inválido');
       }
-      const overwrites = [
-        { id: interaction.guild.id, deny: [P.ViewChannel] },
-        { id: interaction.user.id, allow: [P.ViewChannel, P.SendMessages, P.ReadMessageHistory, P.AttachFiles] },
-        { id: me.id, allow: [P.ViewChannel, P.SendMessages, P.ReadMessageHistory, P.ManageChannels] },
-      ];
-      if (config.ticketSupportRole) overwrites.push({ id: config.ticketSupportRole, allow: [P.ViewChannel, P.SendMessages, P.ReadMessageHistory, P.AttachFiles] });
+      const overwrites = supportOverwrites(interaction.guild, me.id, config.ticketSupportRoles, interaction.user.id);
       // No inherited category permissions: every ticket starts private.
       const channel = await interaction.guild.channels.create({
         name: `ticket-${interaction.user.id}`, type: ChannelType.GuildText,
@@ -67,16 +63,19 @@ export async function handleTickets(interaction, config) {
   const owner = ticketOwner(interaction.channel);
   if (!owner) { await reply('Este canal não é um ticket aberto deste bot.'); return true; }
   const member = await interaction.guild.members.fetch(interaction.user.id);
-  const staff = has(interaction.memberPermissions, P.ManageGuild) || (config.ticketSupportRole && member.roles.cache.has(config.ticketSupportRole));
-  if (owner !== interaction.user.id && !staff) { await reply('Só o autor ou a equipa pode fechar este ticket.'); return true; }
+  const staff = config.ticketSupportRoles.some(id => member.roles.cache.has(id));
+  if (!staff) { await reply('Só os dois cargos de suporte configurados podem fechar este ticket.'); return true; }
   if (closing.has(interaction.channelId)) { await reply('Este ticket já está a ser fechado.'); return true; }
   closing.add(interaction.channelId);
   try {
     await interaction.deferReply({ flags: 64 });
+    const delivery = await deliverTranscript(interaction, config, owner);
     // Retain history: closing only stops the owner from sending new messages.
     await interaction.channel.permissionOverwrites.edit(owner, { SendMessages: false });
     await interaction.channel.edit({ name: `fechado-${owner}`, topic: `precision-ticket-closed:${owner}` });
-    await interaction.editReply('Ticket fechado. O histórico foi preservado neste canal.');
+    await interaction.editReply(delivery.dmSent
+      ? 'Ticket fechado. Transcrição enviada para o arquivo e para o privado do autor.'
+      : 'Ticket fechado. Transcrição guardada no arquivo, mas não foi possível enviá-la ao privado do autor (DMs fechadas ou envio recusado).');
     await interaction.message.edit({ components: [] });
   } finally { closing.delete(interaction.channelId); }
   return true;

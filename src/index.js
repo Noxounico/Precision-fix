@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
+import { syncTicketAccess } from './transcript.js';
 import { applyBanner } from './profile.js';
 import { readConfig } from './config.js';
 import { loadState, saveState } from './state.js';
@@ -11,7 +12,7 @@ import { awardXp, handleXp } from './xp.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
 const channels = {};
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
@@ -44,7 +45,10 @@ client.once(Events.ClientReady, async () => {
       await registerCommands(guild);
       console.log('Comandos /divulgar, /painel, /rank e /top registados neste servidor.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
-    const me = await guild.members.fetchMe();
+    await guild.members.fetchMe();
+    void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
+      .catch(error => report('Atualizar permissões dos tickets', error));
+    const me = guild.members.me;
     for (const [kind, id] of Object.entries(config.channels)) {
       const channel = await guild.channels.fetch(id);
       const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages];
@@ -104,4 +108,4 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
   client.destroy();
 });
 try { await client.login(config.token); }
-catch (error) { report('Ligação ao Discord', error); client.destroy(); process.exitCode = 1; }
+catch (error) { report('Ligação ao Discord (ative Server Members Intent e Message Content Intent no Developer Portal)', error); client.destroy(); process.exitCode = 1; }

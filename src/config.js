@@ -7,6 +7,8 @@ const defaults = Object.freeze({
   LIVE_CHANNEL_ID: '1560785984482836621',
   VIDEO_CHANNEL_ID: '1564086426969182329',
   TIKTOK_USERNAME: 'noxdu7',
+  TICKET_SUPPORT_ROLE_IDS: '1562143820605300801,1562143823193309202',
+  TICKET_TRANSCRIPT_CHANNEL_ID: '1562143825298980895',
   INSTAGRAM_USERNAME: '_.rafaeldu7',
   BOT_BANNER_URL: 'https://media.discordapp.net/attachments/1560786047456120832/1562020832543248465/814fb6b110e20c2d902c71f6dda0caf3.gif?ex=6adfb903&is=6ade6783&hm=97bb6f06f2388c1ebbba6f1100fd4ab7d39b80444e5c1e5dd215338916bdc697&=&width=501&height=218',
   DIVULGAR_IMAGE_URL: 'https://media.discordapp.net/attachments/1564100986870435943/1564101030474420355/c93d7fa7-b022-4220-89d9-610137db1463.png?ex=6ae00a19&is=6adeb899&hm=1b4375f593f62a92e0cee66ca293d0f5ce09012cdf6e4864513071de9621cc43&=&format=webp&quality=lossless&width=583&height=583',
@@ -17,7 +19,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());
   if (missing.length) throw new Error(`Falta configurar: ${missing.join(', ')}`);
-  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_SUPPORT_ROLE_ID']) {
+  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID']) {
     if (env[key] && !/^\d{17,20}$/.test(env[key])) throw new Error(`${key}: ID Discord inválido`);
   }
   if (env.DIVULGAR_IMAGE_URL) {
@@ -30,6 +32,8 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     try { banner = new URL(env.BOT_BANNER_URL); } catch { throw new Error('BOT_BANNER_URL inválido'); }
     if (banner.protocol !== 'https:') throw new Error('BOT_BANNER_URL deve usar HTTPS');
   }
+  const ticketSupportRoles = [...new Set(env.TICKET_SUPPORT_ROLE_IDS.split(',').map(id => id.trim()))];
+  if (!ticketSupportRoles.length || ticketSupportRoles.some(id => !/^\d{17,20}$/.test(id))) throw new Error('TICKET_SUPPORT_ROLE_IDS inválido');
   const username = env.TIKTOK_USERNAME.replace(/^@/, '');
   if (!/^[a-zA-Z0-9_.]{2,24}$/.test(username)) throw new Error('TIKTOK_USERNAME inválido');
   const seconds = (key, fallback, min) => {
@@ -41,7 +45,9 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
-    ticketSupportRole: env.TICKET_SUPPORT_ROLE_ID || null,
+    ticketSupportRoles,
+    ticketTranscriptChannel: env.TICKET_TRANSCRIPT_CHANNEL_ID,
+    messageContent: env.MESSAGE_CONTENT_INTENT !== 'false',
     instagram: env.INSTAGRAM_USERNAME || null,
     divulgarImage: env.DIVULGAR_IMAGE_URL || null,
     banner: env.BOT_BANNER_URL || null,

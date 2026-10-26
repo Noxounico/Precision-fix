@@ -19,7 +19,7 @@ No Windows, o executável fica em `.venv\Scripts\yt-dlp.exe`; no Linux local, `.
 
 O servidor, os quatro canais e o perfil @noxdu7 já têm valores predefinidos em `src/config.js`. No alojamento deste bot basta fornecer `DISCORD_TOKEN`; variáveis de ambiente não vazias podem substituir os valores públicos. O token nunca tem valor predefinido.
 
-1. No Discord Developer Portal, crie uma aplicação e um bot. Ative **Server Members Intent** na página Bot. Não precisa de Message Content Intent.
+1. No Discord Developer Portal, crie uma aplicação e um bot. Ative **Server Members Intent** na página Bot. Ative também **Message Content Intent** para as transcrições dos tickets.
 2. Convide o bot pelo OAuth2 URL Generator, scope `bot`, com **View Channels** e **Send Messages**. Dê acesso aos quatro canais. Não precisa de administrador.
 3. Ative o modo de programador no Discord e copie o ID do servidor e dos canais para `.env`: `GUILD_ID`, `WELCOME_CHANNEL_ID`, `LEAVE_CHANNEL_ID`, `LIVE_CHANNEL_ID`, `VIDEO_CHANNEL_ID`.
 4. Coloque o token em `DISCORD_TOKEN` apenas no ficheiro privado `.env` ou nas variáveis seguras do alojamento. Nunca envie o token por chat ou Git. Se for exposto, faça Reset Token no portal.
@@ -92,7 +92,7 @@ O estado guarda a URL e o hash do banner aplicado para evitar alterações repet
 - `/rank [usuario]`: mostra nível, XP e posição. Disponível aos membros.
 - `/top`: mostra os dez membros com mais XP. Disponível aos membros.
 
-Os quatro comandos são registados/atualizados no arranque, preservando comandos alheios. Autorize `applications.commands` se o Discord não os mostrar. Não é necessário Message Content Intent para o XP: o bot usa apenas os eventos de mensagens do servidor, sem ler ou guardar o conteúdo.
+Os quatro comandos são registados/atualizados no arranque, preservando comandos alheios. Autorize `applications.commands` se o Discord não os mostrar. O XP usa apenas eventos de mensagens. As transcrições dos tickets precisam de **Message Content Intent** ativado no Developer Portal; o bot solicita esse intent no arranque.
 
 ### XP
 
@@ -100,8 +100,10 @@ Cada membro ganha 15 XP por mensagem elegível, no máximo uma vez por minuto, i
 
 ### Tickets
 
-O bot precisa de **Gerir canais**, **Gerir cargos** (para editar as permissões privadas dos canais), **Ver canais**, **Enviar mensagens**, **Ler histórico de mensagens** e **Anexar ficheiros**. Não precisa de administrador. O canal criado é privado para o autor, bot, administradores do servidor e, se configurado, o cargo `TICKET_SUPPORT_ROLE_ID`. Sem esse cargo, só administradores atendem os tickets. O cargo não pode ser `@everyone` nem um cargo gerido por uma integração.
+O bot precisa de **Gerir canais**, **Gerir cargos** (para editar as permissões privadas dos canais), **Ver canais**, **Enviar mensagens**, **Ler histórico de mensagens** e **Anexar ficheiros**. Não precisa de administrador. O canal criado é privado para o autor, bot e os cargos `1562143820605300801` e `1562143823193309202`. Administradores do Discord mantêm acesso pela própria plataforma. `TICKET_SUPPORT_ROLE_IDS` permite substituir a lista, separando IDs por vírgula. No arranque, o bot atualiza também as permissões dos tickets existentes com o seu marcador no tópico. O cargo não pode ser `@everyone` nem um cargo gerido por uma integração.
 
-Só pode haver um ticket aberto por membro; os canais com o marcador no tópico são reconhecidos mesmo após reiniciar. O autor, quem tem **Gerir servidor** e a equipa configurada podem clicar em **Fechar ticket**. O fecho mantém as mensagens e o acesso de leitura do autor, impede novas mensagens desse autor e permite-lhe abrir outro ticket. A equipa pode continuar a escrever no canal fechado. Não há eliminação automática de canais nem transcrições externas.
+Só pode haver um ticket aberto por membro; os canais com o marcador no tópico são reconhecidos mesmo após reiniciar. Apenas membros de um dos dois cargos configurados podem usar **Fechar ticket**. O autor e administradores sem esses cargos não conseguem fechar pelo botão. O fecho mantém as mensagens e o acesso de leitura do autor, impede novas mensagens desse autor e permite-lhe abrir outro ticket. A equipa pode continuar a escrever no canal fechado. Não há eliminação automática de canais. Antes de fechar, o bot exporta o histórico paginado em ficheiros TXT, envia para o canal privado `1562143825298980895` e tenta enviar uma cópia por DM ao autor. O canal de arquivo recebe as mesmas permissões privadas da equipa. Se o arquivo falhar, o ticket permanece aberto; se apenas a DM falhar, fecha com aviso à equipa. Anexos aparecem como links e podem expirar; o bot não copia os ficheiros anexados. Mensagens apagadas antes da exportação não podem ser recuperadas.
 
 Valide o painel, a privacidade com uma conta normal e o XP no alojamento depois do deploy. Os testes simulam a API Discord; não verificam as permissões reais do servidor.
+
+**Antes deste deploy:** ative **Message Content Intent** em Discord Developer Portal → aplicação → Bot. Sem autorização para esse intent, o Discord pode recusar a ligação. `MESSAGE_CONTENT_INTENT=false` permite arrancar sem o intent, mas bloqueia o fecho com transcrição para não produzir um arquivo incompleto. As permissões de Ler histórico, Enviar mensagens e Anexar ficheiros também são necessárias. Não há envio de transcrições para canais ou pessoas fora dos destinos pedidos.

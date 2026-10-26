@@ -9,7 +9,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const config = { guild: '123', ticketSupportRole: null };
+const config = { guild: '123', ticketSupportRoles: [] };
 const perms = (...bits) => new PermissionsBitField(bits);
 test('XP: cooldown por membro, bots/webhooks/outro servidor ignorados e persistência', async () => {
   const file = join(await mkdtemp(join(tmpdir(), 'xp-')), 'state.json');
@@ -85,15 +85,13 @@ test('ticket existente impede duplicação; criação concorrente só cria um ca
   release(); await promise;
   assert.equal(first.calls.creates.length, 1); assert.equal(second.calls.creates.length, 0);
 });
-test('ticket: apenas autor/equipa fecham; fecho mantém histórico e impede envio do autor', async () => {
-  const denied = ticketInteraction({ customId: 'tickets:close', user: { id: 'intruder' } });
-  await handleTickets(denied, config);
-  assert.match(denied.calls.replies[0].content, /Só o autor/);
-  assert.equal(denied.calls.overwrites.length, 0);
-  const owner = ticketInteraction({ customId: 'tickets:close' });
-  await handleTickets(owner, config);
-  assert.deepEqual(owner.calls.overwrites, [['456', { SendMessages: false }]]);
-  assert.equal(owner.calls.channelEdits[0].topic, 'precision-ticket-closed:456');
+test('ticket: autor e administrador sem cargo de suporte não podem fechar', async () => {
+  for (const memberPermissions of [perms(), perms(P.ManageGuild, P.Administrator)]) {
+    const denied = ticketInteraction({ customId: 'tickets:close', memberPermissions });
+    await handleTickets(denied, { ...config, ticketSupportRoles: ['staff'] });
+    assert.match(denied.calls.replies[0].content, /Só os dois cargos/);
+    assert.equal(denied.calls.overwrites.length, 0);
+  }
 });
 test('/painel requer Gerir servidor; membro comum não publica painel', async () => {
   const denied = ticketInteraction({ isChatInputCommand: () => true, commandName: 'painel' });
