@@ -26,7 +26,7 @@ export function buildDivulgacao({ username, instagram, image }) {
   const fields = [{ name: 'TikTok', value: `➡️ https://www.tiktok.com/@${username}` }];
   const profile = instagramProfile(instagram);
   if (profile) fields.push({ name: 'Instagram', value: `➡️ ${profile}` });
-  const embed = new EmbedBuilder().setColor(0x5865f2).setTitle('Como me achar? ⬇️').addFields(fields);
+  const embed = new EmbedBuilder().setColor(0xffffff).setTitle('Como me achar? ⬇️').addFields(fields);
   if (image) {
     if (!/^image\/(png|jpeg|webp|gif)$/.test(image.contentType || '')) throw Error('Escolhe uma imagem PNG, JPG, WEBP ou GIF.');
     embed.setImage(image.url);

@@ -67,7 +67,7 @@ Para persistência entre deploys, monte um volume em `/app/data` com permissões
 
 ## Comando /divulgar
 
-Depois do deploy, o bot regista `/divulgar` no servidor configurado. Quem tiver **Gerir servidor** pode executá-lo no canal onde quer publicar o cartão. O cartão tem uma barra azul, título “Como me achar? ⬇️”, o TikTok @noxdu7 e, quando indicado, o Instagram. Não inclui X nem YouTube e não menciona everyone.
+Depois do deploy, o bot regista `/divulgar` no servidor configurado. Quem tiver **Gerir servidor** pode executá-lo no canal onde quer publicar o cartão. O cartão tem uma barra branca, título “Como me achar? ⬇️”, o TikTok @noxdu7 e, quando indicado, o Instagram. Não inclui X nem YouTube e não menciona everyone.
 
 Exemplo: `/divulgar instagram:@teuperfil imagem:<anexo>`.
 

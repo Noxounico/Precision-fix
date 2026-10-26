@@ -4,10 +4,10 @@ import { PermissionsBitField, PermissionFlagsBits } from 'discord.js';
 import { readConfig } from '../src/config.js';
 import { buildDivulgacao, handleDivulgar, registerDivulgar } from '../src/divulgar.js';
 
-test('cartão só tem TikTok e Instagram, com barra azul e imagem', () => {
+test('cartão só tem TikTok e Instagram, com barra branca e imagem', () => {
   const result = buildDivulgacao({ username: 'noxdu7', instagram: '@exemplo', image: { contentType: 'image/png', url: 'https://cdn.discordapp.com/test.png' } }).toJSON();
   assert.equal(result.title, 'Como me achar? ⬇️');
-  assert.equal(result.color, 0x5865f2);
+  assert.equal(result.color, 0xffffff);
   assert.deepEqual(result.fields.map(field => field.name), ['TikTok', 'Instagram']);
   assert.equal(result.fields[0].value, '➡️ https://www.tiktok.com/@noxdu7');
   assert.equal(result.fields[1].value, '➡️ https://www.instagram.com/exemplo/');
