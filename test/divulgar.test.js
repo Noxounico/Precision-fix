@@ -67,3 +67,19 @@ test('divulgar sem opções usa o Instagram do proprietário', async () => {
   const fields = request.replies[0].embeds[0].toJSON().fields;
   assert.equal(fields[1].value, '➡️ https://www.instagram.com/_.rafaeldu7/');
 });
+
+test('divulgar sem opções mostra a foto predefinida; anexo explícito tem prioridade', async () => {
+  const config = readConfig({ DISCORD_TOKEN: 'test' });
+  const request = interaction();
+  request.guildId = config.guild;
+  request.options.getString = () => null;
+  await handleDivulgar(request, config);
+  assert.equal(request.replies[0].embeds[0].toJSON().image.url, config.divulgarImage);
+  assert.match(config.divulgarImage, /1564101030474420355/);
+  const custom = interaction();
+  custom.guildId = config.guild;
+  custom.options.getAttachment = () => ({ url: 'https://cdn.discordapp.com/custom.png', contentType: 'image/png' });
+  await handleDivulgar(custom, config);
+  assert.equal(custom.replies[0].embeds[0].toJSON().image.url, 'https://cdn.discordapp.com/custom.png');
+  assert.throws(() => readConfig({ DISCORD_TOKEN: 'test', DIVULGAR_IMAGE_URL: 'blob:https://web.whatsapp.com/photo' }), /HTTPS/);
+});

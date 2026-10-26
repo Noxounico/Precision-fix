@@ -63,7 +63,7 @@ export async function handleDivulgar(interaction, config) {
     embed = buildDivulgacao({
       username: config.username,
       instagram: interaction.options.getString('instagram') || config.instagram,
-      image: interaction.options.getAttachment('imagem'),
+      image: interaction.options.getAttachment('imagem') || (config.divulgarImage ? { url: config.divulgarImage, contentType: 'image/webp' } : null),
     });
   } catch (error) {
     await privateReply(error.message);
