@@ -38,7 +38,7 @@ npm start
 - Entrada: `👋 Bem-vindo/a, @membro! Boa estadia no servidor ...!`
 - Saída: `👋 @membro saiu do servidor. Até à próxima!` (sem notificar quem saiu).
 - Live: `🔴 Live online!` e link do TikTok. Verificação a cada 60 segundos.
-- Vídeo: `🎬 Vídeo novo!` e link do vídeo. Verificação a cada 60 segundos, por defeito. Se já existir `VIDEO_POLL_SECONDS` no alojamento, essa variável tem prioridade.
+- Vídeo: `🎬 Vídeo novo acabou de sair! Quem puder ir dar uma força 🙌` e link do vídeo. Verificação a cada 60 segundos, por defeito. Se já existir `VIDEO_POLL_SECONDS` no alojamento, essa variável tem prioridade.
 
 Na primeira consulta, o bot guarda os vídeos como referência e só divulga o mais recente se tiver sido publicado na última hora. Conteúdo mais antigo não gera aviso inicial. Se a primeira consulta encontrar uma live já online, avisa uma vez. O estado em `data/state.json` evita repetir avisos após reiniciar e só rearma a live após duas consultas offline. Preserve esse ficheiro. Podem existir duplicados se o processo falhar entre o envio ao Discord e a gravação do estado. O bot consulta até dez entradas do perfil, ordena os IDs por data para não confundir vídeos fixados com o mais recente e anuncia os novos vídeos detetados em ordem cronológica. Mais de dez publicações entre consultas, vídeos não devolvidos pelo TikTok ou uma live muito curta podem não ser detetados.
 
@@ -113,3 +113,5 @@ O painel, a receção no ticket e os recibos das transcrições usam cartões br
 ### Recuperação do aviso de vídeo reportado
 
 O proprietário reportou que o vídeo `7700986106065489185` de @noxdu7 não foi anunciado. A consulta real de yt-dlp confirmou que esse é o vídeo mais recente do perfil. Esta versão recupera esse aviso uma vez, incluindo se a primeira consulta antiga o tiver marcado apenas como referência. O envio bem-sucedido fica em `replayedVideos` no estado para não repetir nos reinícios; se o envio falhar, tenta na consulta seguinte. Preserve o volume de estado entre deploys. Os logs distinguem obter dados do TikTok, recuperar/enviar o aviso e guardar o estado, mostrando o ID do último vídeo e o canal de destino nas consultas bem-sucedidas.
+
+As boas-vindas e saídas usam embeds brancos com o nome e avatar do membro no cabeçalho, a foto à direita e o ID no rodapé, mantendo a mensagem original. O canal de entrada menciona apenas quem entrou; o de saída não envia pings. O bot precisa de **Inserir links** nos canais de entrada e saída. As mensagens antigas não são editadas.

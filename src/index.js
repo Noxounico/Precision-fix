@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
+import { memberMessage } from './member-messages.js';
 import { syncTicketAccess } from './transcript.js';
 import { applyBanner } from './profile.js';
 import { readConfig } from './config.js';
@@ -18,7 +19,7 @@ const report = (label, error) => console.error(`${label} falhou (código: ${erro
 async function notify(kind, { url }) {
   const ping = config.role ? `<@&${config.role}> ` : '';
   await channels[kind].send({
-    content: `${ping}${kind === 'live' ? '🔴 Live online!' : '🎬 Vídeo novo!'}\n${url}`,
+    content: `${ping}${kind === 'live' ? '🔴 Live online!' : '🎬 Vídeo novo acabou de sair! Quem puder ir dar uma força 🙌'}\n${url}`,
     allowedMentions: { parse: [], roles: config.role ? [config.role] : [] },
   });
   console.log(`Aviso ${kind} enviado para o canal ${config.channels[kind]}.`);
@@ -66,6 +67,7 @@ client.once(Events.ClientReady, async () => {
     for (const [kind, id] of Object.entries(config.channels)) {
       const channel = await guild.channels.fetch(id);
       const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages];
+      if (['welcome', 'leave'].includes(kind)) needed.push(PermissionFlagsBits.EmbedLinks);
       if (!channel?.isTextBased() || channel.isThread() || !channel.permissionsFor(me)?.has(needed)) throw Error(`Canal ${kind} sem permissões`);
       channels[kind] = channel;
     }
@@ -89,13 +91,13 @@ client.once(Events.ClientReady, async () => {
 client.on(Events.GuildMemberAdd, async member => {
   if (member.guild.id !== config.guild || !channels.welcome) return;
   try {
-    await channels.welcome.send({ content: `👋 Bem-vindo/a, <@${member.id}>! Boa estadia no servidor **${member.guild.name}**!`, allowedMentions: { parse: [], users: [member.id] } });
+    await channels.welcome.send(memberMessage(member, true));
   } catch (error) { report('Boas-vindas', error); }
 });
 client.on(Events.GuildMemberRemove, async member => {
   if (member.guild.id !== config.guild || !channels.leave) return;
   try {
-    await channels.leave.send({ content: `👋 <@${member.id}> saiu do servidor. Até à próxima!`, allowedMentions: { parse: [] } });
+    await channels.leave.send(memberMessage(member, false));
   } catch (error) { report('Mensagem de saída', error); }
 });
 client.on(Events.InteractionCreate, async interaction => {
