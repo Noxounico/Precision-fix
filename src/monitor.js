@@ -20,14 +20,38 @@ export class Monitor {
       await this.persist(this.state);
     }
   }
-  async video(video) {
-    if (!video || !/^\d+$/.test(video.id)) throw Error('Vídeo inválido');
-    if (this.account.videos.includes(video.id)) return;
-    // A primeira consulta estabelece a referência; não divulga vídeos antigos.
-    if (this.account.videos.length) {
-      await this.notify('video', { url: `https://www.tiktok.com/@${this.username}/video/${video.id}` });
-    }
-    this.account.videos = [video.id, ...this.account.videos].slice(0, 100);
+  async replayVideo(id) {
+    if (!id || this.account.replayedVideos?.includes(id)) return;
+    if (!/^\d+$/.test(id)) throw Error('Vídeo de recuperação inválido');
+    await this.notify('video', { url: `https://www.tiktok.com/@${this.username}/video/${id}` });
+    this.account.replayedVideos = [id, ...(this.account.replayedVideos || [])].slice(0, 100);
+    if (!this.account.videos.includes(id)) this.account.videos = [id, ...this.account.videos].slice(0, 100);
     await this.persist(this.state);
+  }
+  async video(result) {
+    const videos = result?.videos || [result];
+    if (!Array.isArray(videos) || !videos.length || videos.some(video => !video || !/^\d+$/.test(video.id))) throw Error('Vídeo inválido');
+    const ids = [...new Set(videos.map(video => video.id))].sort((a, b) => BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0);
+    const initial = this.account.videos.length === 0;
+    const latest = ids.at(-1);
+    if (initial) {
+      const publishedAt = Number(BigInt(latest) >> 32n) * 1000;
+      const age = Date.now() - publishedAt;
+      // Recover a just-published post even when there is no baseline yet.
+      if (age >= -300000 && age <= 3600000) {
+        await this.notify('video', { url: `https://www.tiktok.com/@${this.username}/video/${latest}` });
+      }
+      this.account.videos = ids.toReversed().slice(0, 100);
+      await this.persist(this.state);
+      return;
+    }
+    const newestSeen = this.account.videos.reduce((max, id) => BigInt(id) > max ? BigInt(id) : max, 0n);
+    for (const id of ids) {
+      // Older pinned posts and posts falling out of the recent window are not new.
+      if (BigInt(id) <= newestSeen || this.account.videos.includes(id)) continue;
+      await this.notify('video', { url: `https://www.tiktok.com/@${this.username}/video/${id}` });
+      this.account.videos = [id, ...this.account.videos].slice(0, 100);
+      await this.persist(this.state);
+    }
   }
 }

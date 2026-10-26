@@ -45,6 +45,8 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
+    // Owner-reported missed post, verified against the public TikTok redirect.
+    videoRecovery: username === 'noxdu7' ? '7700986106065489185' : null,
     ticketSupportRoles,
     ticketTranscriptChannel: env.TICKET_TRANSCRIPT_CHANNEL_ID,
     messageContent: env.MESSAGE_CONTENT_INTENT !== 'false',
@@ -52,7 +54,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     divulgarImage: env.DIVULGAR_IMAGE_URL || null,
     banner: env.BOT_BANNER_URL || null,
     liveInterval: seconds('LIVE_POLL_SECONDS', 60, 30),
-    videoInterval: seconds('VIDEO_POLL_SECONDS', 300, 120),
+    videoInterval: seconds('VIDEO_POLL_SECONDS', 60, 60),
     ytdlp: env.YTDLP_BIN || 'yt-dlp', stateFile: env.STATE_FILE || './data/state.json',
   };
 }

@@ -21,14 +21,28 @@ async function notify(kind, { url }) {
     content: `${ping}${kind === 'live' ? '🔴 Live online!' : '🎬 Vídeo novo!'}\n${url}`,
     allowedMentions: { parse: [], roles: config.role ? [config.role] : [] },
   });
+  console.log(`Aviso ${kind} enviado para o canal ${config.channels[kind]}.`);
 }
 const monitor = new Monitor({ state, username: config.username, persist: s => saveState(config.stateFile, s), notify });
 const source = tiktok(config);
 let stopping = false;
 const timers = new Set();
 async function poll(kind, interval) {
-  try { await monitor[kind](await source[kind]()); }
-  catch (error) { report(`Consulta ${kind}`, error); }
+  let stage = 'obter dados do TikTok';
+  try {
+    if (kind === 'video' && config.videoRecovery) {
+      stage = 'recuperar aviso do vídeo no Discord';
+      await monitor.replayVideo(config.videoRecovery);
+    }
+    stage = 'obter dados do TikTok';
+    const result = await source[kind]();
+    stage = 'enviar aviso ao Discord ou guardar estado';
+    await monitor[kind](result);
+    if (kind === 'video') console.log(`Consulta video OK: @${config.username}, último vídeo ${result.videos[0].id}, canal ${config.channels.video}.`);
+  } catch (error) {
+    console.error(`Consulta ${kind} falhou ao ${stage} (código: ${error.code || error.name || 'desconhecido'}).`);
+    if (stage === 'obter dados do TikTok' && kind === 'video') console.error(`TikTok: ${error.message}`);
+  }
   if (!stopping) {
     const timer = setTimeout(() => { timers.delete(timer); void poll(kind, interval); }, interval);
     timers.add(timer);

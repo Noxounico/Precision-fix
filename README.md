@@ -38,9 +38,9 @@ npm start
 - Entrada: `👋 Bem-vindo/a, @membro! Boa estadia no servidor ...!`
 - Saída: `👋 @membro saiu do servidor. Até à próxima!` (sem notificar quem saiu).
 - Live: `🔴 Live online!` e link do TikTok. Verificação a cada 60 segundos.
-- Vídeo: `🎬 Vídeo novo!` e link do vídeo. Verificação a cada 5 minutos.
+- Vídeo: `🎬 Vídeo novo!` e link do vídeo. Verificação a cada 60 segundos, por defeito. Se já existir `VIDEO_POLL_SECONDS` no alojamento, essa variável tem prioridade.
 
-O primeiro vídeo encontrado é guardado como referência e não gera divulgação de conteúdo antigo. Se a primeira consulta encontrar uma live já online, avisa uma vez. O estado em `data/state.json` evita repetir avisos após reiniciar e só rearma a live após duas consultas offline. Preserve esse ficheiro. Podem existir duplicados se o processo falhar entre o envio ao Discord e a gravação do estado. Entre consultas, várias publicações ou uma live muito curta podem não ser detetadas; o monitor divulga o vídeo mais recente que o TikTok devolver.
+Na primeira consulta, o bot guarda os vídeos como referência e só divulga o mais recente se tiver sido publicado na última hora. Conteúdo mais antigo não gera aviso inicial. Se a primeira consulta encontrar uma live já online, avisa uma vez. O estado em `data/state.json` evita repetir avisos após reiniciar e só rearma a live após duas consultas offline. Preserve esse ficheiro. Podem existir duplicados se o processo falhar entre o envio ao Discord e a gravação do estado. O bot consulta até dez entradas do perfil, ordena os IDs por data para não confundir vídeos fixados com o mais recente e anuncia os novos vídeos detetados em ordem cronológica. Mais de dez publicações entre consultas, vídeos não devolvidos pelo TikTok ou uma live muito curta podem não ser detetados.
 
 A deteção usa interfaces públicas não oficiais (`tiktok-live-connector` e `yt-dlp`). O TikTok pode bloquear pedidos de servidores cloud, impor desafios ou mudar as interfaces. Erros de consulta são registados e tentados novamente sem marcar conteúdo como anunciado; não são tratados como uma live terminada. Não há garantia de deteção até validar no alojamento com o perfil real. Não há descarregamento dos vídeos nem envio de mensagens no TikTok.
 
@@ -109,3 +109,7 @@ Valide o painel, a privacidade com uma conta normal e o XP no alojamento depois 
 **Antes deste deploy:** ative **Message Content Intent** em Discord Developer Portal → aplicação → Bot. Sem autorização para esse intent, o Discord pode recusar a ligação. `MESSAGE_CONTENT_INTENT=false` permite arrancar sem o intent, mas bloqueia o fecho com transcrição para não produzir um arquivo incompleto. As permissões de Ler histórico, Enviar mensagens e Anexar ficheiros também são necessárias. Não há envio de transcrições para canais ou pessoas fora dos destinos pedidos.
 
 O painel, a receção no ticket e os recibos das transcrições usam cartões brancos, ícone do servidor quando disponível e botões cinzentos. O painel utiliza o banner do bot; execute `/painel` novamente para publicar o visual novo. Os painéis e mensagens já enviados não são editados automaticamente. O bot também precisa de Inserir links no canal de arquivo para os cartões das transcrições.
+
+### Recuperação do aviso de vídeo reportado
+
+O proprietário reportou que o vídeo `7700986106065489185` de @noxdu7 não foi anunciado. A consulta real de yt-dlp confirmou que esse é o vídeo mais recente do perfil. Esta versão recupera esse aviso uma vez, incluindo se a primeira consulta antiga o tiver marcado apenas como referência. O envio bem-sucedido fica em `replayedVideos` no estado para não repetir nos reinícios; se o envio falhar, tenta na consulta seguinte. Preserve o volume de estado entre deploys. Os logs distinguem obter dados do TikTok, recuperar/enviar o aviso e guardar o estado, mostrando o ID do último vídeo e o canal de destino nas consultas bem-sucedidas.
