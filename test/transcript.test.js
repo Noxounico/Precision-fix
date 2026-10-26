@@ -10,6 +10,7 @@ function fixture({ dmFails = false, archiveFails = false } = {}) {
   const bot = { id: 'bot', permissions: new PermissionsBitField([P.ManageChannels, P.ManageRoles]) };
   const channel = { id: 'ticket', name: 'ticket-456', topic: 'precision-ticket:456',
     permissionsFor: () => new PermissionsBitField([P.ViewChannel, P.ReadMessageHistory]),
+    send: async () => {},
     messages: { fetch: async ({ before }) => before ? new Collection() : new Collection([['2', msg('2', 'Resposta')], ['1', msg('1', 'Pedido de ajuda')]]) },
     permissionOverwrites: { edit: async (...args) => calls.permissions.push(args) }, edit: async data => calls.closes.push(data),
   };
@@ -48,7 +49,7 @@ test('os dois cargos têm acesso; nenhum outro cargo é acrescentado', () => {
   assert.deepEqual(rules.map(r => r.id), ['123', 'bot', 'staffA', 'staffB', '456']);
   assert.deepEqual(rules[0].deny, [P.ViewChannel]);
 });
-test('fecho autorizado arquiva e envia cópia ao autor, mantendo histórico do canal', async () => {
+test('fecho autorizado arquiva e envia cópia ao autor antes de marcar a eliminação', async () => {
   const { calls, interaction } = fixture();
   await handleTickets(interaction, config);
   assert.equal(calls.archive.length, 1); assert.equal(calls.dm.length, 1);
@@ -56,7 +57,7 @@ test('fecho autorizado arquiva e envia cópia ao autor, mantendo histórico do c
   assert.match(archived.toString(), /Pedido de ajuda/);
   assert.deepEqual(calls.dm[0].files[0].attachment, archived);
   assert.deepEqual(calls.permissions, [['456', { SendMessages: false }]]);
-  assert.equal(calls.closes[0].topic, 'precision-ticket-closed:456');
+  assert.match(calls.closes[0].topic, /^precision-ticket-closed:456:\d+$/);
   assert.deepEqual(calls.archiveAccess.map(r => r.id), ['123', 'bot', 'staffA', 'staffB']);
 });
 test('DM fechada não perde arquivo e informa a equipa', async () => {

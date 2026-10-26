@@ -1,3 +1,4 @@
+import { deletionDeadline, scheduleTicketDeletion } from './ticket-cleanup.js';
 import { transcriptCard } from './ticket-ui.js';
 import { AttachmentBuilder, PermissionFlagsBits as P } from 'discord.js';
 
@@ -18,8 +19,10 @@ export async function syncTicketAccess(guild, config) {
   }
   const channels = await guild.channels.fetch();
   for (const channel of channels.values()) {
-    const match = channel?.topic?.match(/^precision-ticket(-closed)?:(\d+)$/);
+    const match = channel?.topic?.match(/^precision-ticket(-closed)?:(\d+)(?::\d+)?$/);
     if (!match) continue;
+    const deadline = deletionDeadline(channel.topic);
+    if (deadline) scheduleTicketDeletion(channel, deadline);
     await channel.permissionOverwrites.set(supportOverwrites(guild, me.id, config.ticketSupportRoles, match[2], !!match[1]));
   }
 }

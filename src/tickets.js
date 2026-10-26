@@ -1,3 +1,4 @@
+import { scheduleTicketDeletion } from './ticket-cleanup.js';
 import { ticketPanel, ticketWelcome } from './ticket-ui.js';
 import { supportOverwrites, deliverTranscript } from './transcript.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
@@ -70,13 +71,16 @@ export async function handleTickets(interaction, config) {
   try {
     await interaction.deferReply({ flags: 64 });
     const delivery = await deliverTranscript(interaction, config, owner);
-    // Retain history: closing only stops the owner from sending new messages.
+    // The archive succeeded. Only now mark this channel for deletion.
     await interaction.channel.permissionOverwrites.edit(owner, { SendMessages: false });
-    await interaction.channel.edit({ name: `fechado-${owner}`, topic: `precision-ticket-closed:${owner}` });
+    const deleteAt = Date.now() + 5000;
+    await interaction.channel.edit({ name: `fechado-${owner}`, topic: `precision-ticket-closed:${owner}:${deleteAt}` });
+    scheduleTicketDeletion(interaction.channel, deleteAt);
     await interaction.editReply(delivery.dmSent
-      ? 'Ticket fechado. Transcrição enviada para o arquivo e para o privado do autor.'
-      : 'Ticket fechado. Transcrição guardada no arquivo, mas não foi possível enviá-la ao privado do autor (DMs fechadas ou envio recusado).');
+      ? 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição enviada para o arquivo e para o privado do autor.'
+      : 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição guardada no arquivo, mas não foi possível enviá-la ao privado do autor (DMs fechadas ou envio recusado).');
     await interaction.message.edit({ components: [] });
+    await interaction.channel.send({ content: '🔒 **Ticket encerrado**\nEste canal será apagado em **5 segundos**. A transcrição foi guardada no arquivo.', allowedMentions: { parse: [] } });
   } finally { closing.delete(interaction.channelId); }
   return true;
 }
