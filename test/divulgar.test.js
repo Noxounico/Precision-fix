@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { PermissionsBitField, PermissionFlagsBits } from 'discord.js';
+import { buildDivulgacao, handleDivulgar, registerDivulgar } from '../src/divulgar.js';
+
+test('cartão só tem TikTok e Instagram, com barra azul e imagem', () => {
+  const result = buildDivulgacao({ username: 'noxdu7', instagram: '@exemplo', image: { contentType: 'image/png', url: 'https://cdn.discordapp.com/test.png' } }).toJSON();
+  assert.equal(result.title, 'Como me achar? ⬇️');
+  assert.equal(result.color, 0x5865f2);
+  assert.deepEqual(result.fields.map(field => field.name), ['TikTok', 'Instagram']);
+  assert.equal(result.fields[0].value, '➡️ https://www.tiktok.com/@noxdu7');
+  assert.equal(result.fields[1].value, '➡️ https://www.instagram.com/exemplo/');
+  assert.equal(result.image.url, 'https://cdn.discordapp.com/test.png');
+});
+test('opções omitidas, normalização de perfil e rejeição de links e anexos inválidos', () => {
+  assert.equal(buildDivulgacao({ username: 'noxdu7' }).toJSON().fields.length, 1);
+  assert.equal(buildDivulgacao({ username: 'noxdu7', instagram: 'https://instagram.com/exemplo/?igsh=123' }).toJSON().fields[1].value, '➡️ https://www.instagram.com/exemplo/');
+  assert.throws(() => buildDivulgacao({ username: 'noxdu7', instagram: 'https://instagram.com.evil.test/name' }));
+  assert.throws(() => buildDivulgacao({ username: 'noxdu7', image: { contentType: 'application/pdf', url: 'https://example.com/file.pdf' } }));
+});
+function interaction() {
+  const replies = [];
+  return {
+    replies, isChatInputCommand: () => true, commandName: 'divulgar', guildId: 'server',
+    memberPermissions: new PermissionsBitField(PermissionFlagsBits.ManageGuild),
+    appPermissions: new PermissionsBitField([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]),
+    options: { getString: () => '@exemplo', getAttachment: () => null },
+    reply: async reply => replies.push(reply),
+  };
+}
+test('comando publica cartão público sem pings; recusa outro servidor e membros sem permissão', async () => {
+  const config = { guild: 'server', username: 'noxdu7' };
+  const good = interaction(); await handleDivulgar(good, config);
+  assert.equal(good.replies[0].embeds.length, 1);
+  assert.deepEqual(good.replies[0].allowedMentions.parse, []);
+  for (const patch of [{ guildId: 'other' }, { memberPermissions: new PermissionsBitField() }, { appPermissions: new PermissionsBitField() }]) {
+    const denied = Object.assign(interaction(), patch);
+    await handleDivulgar(denied, config);
+    assert.equal(denied.replies[0].flags, 64);
+    assert.equal(denied.replies[0].embeds, undefined);
+  }
+});
+test('registo preserva outros comandos e atualiza apenas divulgar', async () => {
+  const edits = [];
+  const guild = { commands: {
+    fetch: async () => new Map(),
+    create: async command => edits.push(['create', command.name]),
+    edit: async id => edits.push(['edit', id]),
+  } };
+  // Discord returns a Collection with find().
+  guild.commands.fetch = async () => ({ find: predicate => [{ id: 'other', name: 'outro', type: 1 }, { id: 'own', name: 'divulgar', type: 1 }].find(predicate) });
+  await registerDivulgar(guild);
+  assert.deepEqual(edits, [['edit', 'own']]);
+  guild.commands.fetch = async () => ({ find: () => undefined });
+  await registerDivulgar(guild);
+  assert.deepEqual(edits[1], ['create', 'divulgar']);
+});

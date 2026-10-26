@@ -28,6 +28,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
+    instagram: env.INSTAGRAM_USERNAME || null,
     liveInterval: seconds('LIVE_POLL_SECONDS', 60, 30),
     videoInterval: seconds('VIDEO_POLL_SECONDS', 300, 120),
     ytdlp: env.YTDLP_BIN || 'yt-dlp', stateFile: env.STATE_FILE || './data/state.json',

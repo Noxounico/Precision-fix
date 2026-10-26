@@ -3,6 +3,7 @@ import { readConfig } from './config.js';
 import { loadState, saveState } from './state.js';
 import { Monitor } from './monitor.js';
 import { tiktok } from './tiktok.js';
+import { registerDivulgar, handleDivulgar } from './divulgar.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
@@ -31,6 +32,10 @@ async function poll(kind, interval) {
 client.once(Events.ClientReady, async () => {
   try {
     const guild = await client.guilds.fetch(config.guild);
+    try {
+      await registerDivulgar(guild);
+      console.log('Comando /divulgar registado neste servidor.');
+    } catch (error) { report('Registo de /divulgar (verifique autorização applications.commands)', error); }
     const me = await guild.members.fetchMe();
     for (const [kind, id] of Object.entries(config.channels)) {
       const channel = await guild.channels.fetch(id);
@@ -66,6 +71,15 @@ client.on(Events.GuildMemberRemove, async member => {
   try {
     await channels.leave.send({ content: `👋 <@${member.id}> saiu do servidor. Até à próxima!`, allowedMentions: { parse: [] } });
   } catch (error) { report('Mensagem de saída', error); }
+});
+client.on(Events.InteractionCreate, async interaction => {
+  try { await handleDivulgar(interaction, config); }
+  catch (error) {
+    report('Comando /divulgar', error);
+    if (interaction.isChatInputCommand() && !interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'Não consegui publicar a divulgação. Verifica as permissões do bot neste canal.', flags: 64 }).catch(() => {});
+    }
+  }
 });
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {

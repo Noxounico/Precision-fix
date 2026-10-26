@@ -64,3 +64,13 @@ docker run --rm --env-file .env -e YTDLP_BIN=/opt/yt-dlp/bin/yt-dlp precision-di
 ```
 
 Para persistência entre deploys, monte um volume em `/app/data` com permissões de escrita para o utilizador `node` (UID 1000). Sem volume, o estado pode ser perdido ao recriar o contentor. O bot precisa de acesso HTTPS ao Discord e TikTok, e WebSocket ao Gateway do Discord. Os testes locais não substituem validar estas ligações no alojamento.
+
+## Comando /divulgar
+
+Depois do deploy, o bot regista `/divulgar` no servidor configurado. Quem tiver **Gerir servidor** pode executá-lo no canal onde quer publicar o cartão. O cartão tem uma barra azul, título “Como me achar? ⬇️”, o TikTok @noxdu7 e, quando indicado, o Instagram. Não inclui X nem YouTube e não menciona everyone.
+
+Exemplo: `/divulgar instagram:@teuperfil imagem:<anexo>`.
+
+As duas opções são facultativas. `INSTAGRAM_USERNAME` pode guardar o Instagram habitual nas variáveis do alojamento; a opção do comando tem prioridade. Sem perfil configurado, mostra apenas TikTok. A opção `imagem` aceita PNG, JPG, WEBP e GIF e aparece por baixo dos links, como no exemplo. Sem anexo, publica só os links.
+
+O bot precisa de **Enviar mensagens** e **Inserir links (Embed Links)** no canal. Se o comando não aparecer, autorize a aplicação com os scopes `bot` e `applications.commands` no OAuth2 do Discord e confirme que o novo deploy arrancou. O registo atualiza apenas `/divulgar`, preservando outros comandos existentes.
