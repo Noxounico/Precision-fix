@@ -101,11 +101,23 @@ test('/painel requer Gerir servidor; membro comum não publica painel', async ()
   await handleTickets(admin, config);
   assert.equal(admin.calls.replies[0].components[0].toJSON().components[0].custom_id, 'tickets:open');
 });
-test('regista quatro comandos sem apagar comandos alheios', async () => {
-  const edits = [], creates = [];
+test('regista quatro comandos e apaga registos antigos e duplicados globais deste bot', async () => {
+  const edits = [], creates = [], deletes = [], globalDeletes = [];
   const guild = { commands: { fetch: async () => new Collection([['1', { id: '1', name: 'painel', type: 1 }], ['2', { id: '2', name: 'outro', type: 1 }]]),
-    edit: async (id, data) => edits.push([id, data.name]), create: async data => creates.push(data.name) } };
-  await registerCommands(guild);
+    edit: async (id, data) => edits.push([id, data.name]), create: async data => creates.push(data.name), delete: async id => deletes.push(id) } };
+  const globals = { fetch: async () => new Collection([['global', { id: 'global', name: 'painel' }]]), delete: async id => globalDeletes.push(id) };
+  await registerCommands(guild, globals);
+  assert.deepEqual(deletes, ['2']);
+  assert.deepEqual(globalDeletes, ['global']);
   assert.deepEqual(edits, [['1', 'painel']]);
   assert.deepEqual(creates, ['divulgar', 'rank', 'top']);
+});
+
+test('se o registo dos comandos atuais falhar, não remove os comandos antigos', async () => {
+  const guild = { commands: {
+    fetch: async () => new Collection([['old', { id: 'old', name: 'antigo', type: 1 }]]),
+    create: async () => { throw Error('Discord unavailable'); },
+    delete: async () => assert.fail('must not delete before replacements exist'),
+  } };
+  await assert.rejects(registerCommands(guild));
 });

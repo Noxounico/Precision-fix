@@ -73,7 +73,7 @@ Exemplo: `/divulgar instagram:@teuperfil imagem:<anexo>`.
 
 As duas opções são facultativas. `INSTAGRAM_USERNAME` pode guardar o Instagram habitual nas variáveis do alojamento; a opção do comando tem prioridade. O perfil predefinido é `@_.rafaeldu7`, fornecido pelo proprietário. A opção `imagem` aceita PNG, JPG, WEBP e GIF e aparece por baixo dos links, como no exemplo. Sem anexo, usa a foto predefinida enviada pelo proprietário. A opção `imagem` tem prioridade sobre essa foto.
 
-O bot precisa de **Enviar mensagens** e **Inserir links (Embed Links)** no canal. Se o comando não aparecer, autorize a aplicação com os scopes `bot` e `applications.commands` no OAuth2 do Discord e confirme que o novo deploy arrancou. O registo atualiza apenas `/divulgar`, preservando outros comandos existentes.
+O bot precisa de **Enviar mensagens** e **Inserir links (Embed Links)** no canal. Se o comando não aparecer, autorize a aplicação com os scopes `bot` e `applications.commands` no OAuth2 do Discord e confirme que o novo deploy arrancou. O arranque regista os quatro comandos atuais e remove registos antigos deste bot.
 
 Endereços `blob:` do WhatsApp são locais à sessão do navegador e não servem como URL de imagem no Discord. Para usar uma foto, selecione o ficheiro na opção `imagem` do comando `/divulgar` diretamente no Discord.
 
@@ -92,7 +92,7 @@ O estado guarda a URL e o hash do banner aplicado para evitar alterações repet
 - `/rank [usuario]`: mostra nível, XP e posição. Disponível aos membros.
 - `/top`: mostra os dez membros com mais XP. Disponível aos membros.
 
-Os quatro comandos são registados/atualizados no arranque, preservando comandos alheios. Autorize `applications.commands` se o Discord não os mostrar. O XP usa apenas eventos de mensagens. As transcrições dos tickets precisam de **Message Content Intent** ativado no Developer Portal; o bot solicita esse intent no arranque.
+Os quatro comandos são registados/atualizados no servidor no arranque. Depois de registar os atuais com sucesso, o bot remove os seus comandos antigos e todos os seus registos globais para evitar duplicados. Comandos de outras aplicações não são alterados. Autorize `applications.commands` se o Discord não os mostrar. O XP usa apenas eventos de mensagens. As transcrições dos tickets precisam de **Message Content Intent** ativado no Developer Portal; o bot solicita esse intent no arranque.
 
 ### XP
 

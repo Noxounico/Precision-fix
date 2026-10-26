@@ -43,7 +43,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /rank e /top registados neste servidor.');
+      console.log('Comandos /divulgar, /painel, /rank e /top registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
