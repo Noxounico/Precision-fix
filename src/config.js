@@ -8,7 +8,7 @@ const defaults = Object.freeze({
   VIDEO_CHANNEL_ID: '1564086426969182329',
   TIKTOK_USERNAME: 'noxdu7',
   INSTAGRAM_USERNAME: '_.rafaeldu7',
-  BOT_BANNER_URL: 'https://media.discordapp.net/attachments/1560786047456120832/1562020907281686569/7f36c4311ffaa6da4d59fcd9841ae7f6.jpg?ex=6adfb915&is=6ade6795&hm=8a9f43a3632006904989b666f93d76454f8878e6825b9a818091246a4176ff72&=&format=webp&width=589&height=331',
+  BOT_BANNER_URL: 'https://media.discordapp.net/attachments/1560786047456120832/1562020832543248465/814fb6b110e20c2d902c71f6dda0caf3.gif?ex=6adfb903&is=6ade6783&hm=97bb6f06f2388c1ebbba6f1100fd4ab7d39b80444e5c1e5dd215338916bdc697&=&width=501&height=218',
   DIVULGAR_IMAGE_URL: 'https://media.discordapp.net/attachments/1564100986870435943/1564101030474420355/c93d7fa7-b022-4220-89d9-610137db1463.png?ex=6ae00a19&is=6adeb899&hm=1b4375f593f62a92e0cee66ca293d0f5ce09012cdf6e4864513071de9621cc43&=&format=webp&quality=lossless&width=583&height=583',
 });
 export function readConfig(env = process.env, { requireToken = true } = {}) {
