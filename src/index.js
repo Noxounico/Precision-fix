@@ -43,6 +43,14 @@ client.once(Events.ClientReady, async () => {
     void poll('video', config.videoInterval);
   } catch (error) {
     report('Validação dos canais', error);
+    if (Number(error.code) === 10004) {
+      console.error(`O bot não encontra o servidor GUILD_ID=${config.guild}. Confirme o ID do servidor e se este bot foi convidado.`);
+      const guildIds = [...client.guilds.cache.keys()];
+      console.error(`Servidores deste bot: ${guildIds.length ? guildIds.join(', ') : 'nenhum'}.`);
+      const invite = new URL('https://discord.com/oauth2/authorize');
+      invite.search = new URLSearchParams({ client_id: client.user.id, scope: 'bot', permissions: '3072', guild_id: config.guild });
+      console.error(`Convite para este bot (abrir com uma conta que possa gerir o servidor): ${invite}`);
+    }
     client.destroy();
     process.exitCode = 1;
   }
