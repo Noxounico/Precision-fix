@@ -73,7 +73,7 @@ Exemplo: `/divulgar instagram:@teuperfil imagem:<anexo>`.
 
 As duas opções são facultativas. `INSTAGRAM_USERNAME` pode guardar o Instagram habitual nas variáveis do alojamento; a opção do comando tem prioridade. O perfil predefinido é `@_.rafaeldu7`, fornecido pelo proprietário. A opção `imagem` aceita PNG, JPG, WEBP e GIF e aparece por baixo dos links, como no exemplo. Sem anexo, usa a foto predefinida enviada pelo proprietário. A opção `imagem` tem prioridade sobre essa foto.
 
-O bot precisa de **Enviar mensagens** e **Inserir links (Embed Links)** no canal. Se o comando não aparecer, autorize a aplicação com os scopes `bot` e `applications.commands` no OAuth2 do Discord e confirme que o novo deploy arrancou. O arranque regista os quatro comandos atuais e remove registos antigos deste bot.
+O bot precisa de **Enviar mensagens** e **Inserir links (Embed Links)** no canal. Se o comando não aparecer, autorize a aplicação com os scopes `bot` e `applications.commands` no OAuth2 do Discord e confirme que o novo deploy arrancou. O arranque regista os comandos atuais e remove registos antigos deste bot.
 
 Endereços `blob:` do WhatsApp são locais à sessão do navegador e não servem como URL de imagem no Discord. Para usar uma foto, selecione o ficheiro na opção `imagem` do comando `/divulgar` diretamente no Discord.
 
@@ -92,7 +92,7 @@ O estado guarda a URL e o hash do banner aplicado para evitar alterações repet
 - `/rank [usuario]`: mostra nível, XP e posição. Disponível aos membros.
 - `/top`: mostra os dez membros com mais XP. Disponível aos membros.
 
-Os quatro comandos são registados/atualizados no servidor no arranque. Depois de registar os atuais com sucesso, o bot remove os seus comandos antigos e todos os seus registos globais para evitar duplicados. Comandos de outras aplicações não são alterados. Autorize `applications.commands` se o Discord não os mostrar. O XP usa apenas eventos de mensagens. As transcrições dos tickets precisam de **Message Content Intent** ativado no Developer Portal; o bot solicita esse intent no arranque.
+Os comandos atuais são registados/atualizados no servidor no arranque. Depois de registar os atuais com sucesso, o bot remove os seus comandos antigos e todos os seus registos globais para evitar duplicados. Comandos de outras aplicações não são alterados. Autorize `applications.commands` se o Discord não os mostrar. O XP usa apenas eventos de mensagens. As transcrições dos tickets precisam de **Message Content Intent** ativado no Developer Portal; o bot solicita esse intent no arranque.
 
 ### XP
 
@@ -115,3 +115,23 @@ O painel, a receção no ticket e os recibos das transcrições usam cartões br
 O proprietário reportou que o vídeo `7700986106065489185` de @noxdu7 não foi anunciado. A consulta real de yt-dlp confirmou que esse é o vídeo mais recente do perfil. Esta versão recupera esse aviso uma vez, incluindo se a primeira consulta antiga o tiver marcado apenas como referência. O envio bem-sucedido fica em `replayedVideos` no estado para não repetir nos reinícios; se o envio falhar, tenta na consulta seguinte. Preserve o volume de estado entre deploys. Os logs distinguem obter dados do TikTok, recuperar/enviar o aviso e guardar o estado, mostrando o ID do último vídeo e o canal de destino nas consultas bem-sucedidas.
 
 As boas-vindas e saídas usam embeds brancos com o nome e avatar do membro no cabeçalho, a foto à direita e o ID no rodapé, mantendo a mensagem original. O canal de entrada menciona apenas quem entrou; o de saída não envia pings. O bot precisa de **Inserir links** nos canais de entrada e saída. As mensagens antigas não são editadas.
+
+## Redes, vídeos e lives
+
+O `/divulgar` publica um cartão branco com foto, apresentação, links lado a lado e botões TikTok/Instagram. Os avisos de vídeo e live usam cartões com foto em miniatura, banner e botão para abrir o conteúdo. O aviso de vídeo mantém “Quem puder ir dar uma força 🙌”. O bot precisa de **Inserir links** também nos canais de lives/vídeos. Os URLs de imagens antigos do Discord podem expirar; substitua-os nas variáveis de configuração ou use uma foto nova em `/divulgar imagem:`.
+
+## /clear
+
+`/clear quantidade:20` apaga até 20 mensagens recentes do canal atual (intervalo permitido: 1–100). Requer **Gerir mensagens** tanto no membro como no bot; o bot também precisa de **Ler histórico**. A resposta com a contagem real é privada. Mensagens fixadas e mensagens de 14 dias ou mais não são apagadas. O comando não pede uma segunda confirmação: executá-lo autoriza essa limpeza.
+
+## /backup e /bckup
+
+`/backup` exporta os dados acessíveis deste servidor. `/bckup` é um alias. Apenas **administradores** podem executar; os ficheiros são enviados para o privado de quem executou e nunca publicados no canal. Ative as DMs antes de iniciar. Só pode existir uma exportação por servidor de cada vez. `/backup mensagens:false` exporta apenas estrutura e metadados, sem o histórico.
+
+Inclui configurações principais do servidor, cargos e permissões, canais/categorias/tópicos e respetivas permissões, tópicos ativos e arquivados acessíveis, membros e associação a cargos, emojis/stickers, eventos, regras AutoMod, banimentos, metadados de webhooks sem segredos e histórico acessível com conteúdo, anexos como links, embeds, componentes e contagens de reações. O ficheiro `relatorio.json` e o último registo da exportação listam contagens e secções que falharam por falta de acesso ou limitações da API. A exportação pode ser parcial e não congela o servidor enquanto decorre.
+
+O formato é **NDJSON comprimido com gzip** (`.ndjson.gz`): descomprima com 7-Zip ou gzip para obter um ficheiro de texto com um registo JSON por linha. Os ficheiros grandes são divididos em partes e acompanham instruções para as juntar. A exportação é escrita em streaming num diretório temporário privado e removida da máquina após o envio ou falha. Servidores grandes podem levar muito tempo; a recolha continua depois de a resposta inicial do comando ter expirado, enquanto o processo do bot continuar em execução. Os ficheiros são entregues por DM.
+
+**Limites:** é uma exportação, não um clone integral nem um sistema de restauro. A API não permite recriar IDs, transferir membros, recuperar mensagens apagadas ou copiar propriedade, subscrições e boosts. Não inclui DMs, tokens, segredos de webhooks, códigos de convite, gravações de voz nem auditoria. Imagens e anexos são URLs e **não cópias dos ficheiros binários**; podem expirar. Não existe comando de restauro automático nesta versão. Guarde os ficheiros num local privado.
+
+Para maior cobertura, o bot precisa de ver os canais, ler histórico e ter **Server Members Intent** e **Message Content Intent** ativos. Banimentos, AutoMod, metadados de webhooks e tópicos privados requerem as permissões específicas correspondentes (Banir membros, Gerir servidor, Gerir webhooks e Gerir tópicos). Permissões ausentes são registadas no relatório, sem as contornar. Testes locais verificam a paginação, exclusão de segredos, exportação parcial, divisão de ficheiros e controlos de acesso; o backup ainda precisa de validação com o servidor real.

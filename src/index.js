@@ -1,4 +1,7 @@
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
+import { announcement } from './social-cards.js';
+import { handleClear } from './moderation.js';
+import { handleBackup } from './backup.js';
 import { memberMessage } from './member-messages.js';
 import { syncTicketAccess } from './transcript.js';
 import { applyBanner } from './profile.js';
@@ -17,11 +20,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 const channels = {};
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
-  const ping = config.role ? `<@&${config.role}> ` : '';
-  await channels[kind].send({
-    content: `${ping}${kind === 'live' ? '🔴 Live online!' : '🎬 Vídeo novo acabou de sair! Quem puder ir dar uma força 🙌'}\n${url}`,
-    allowedMentions: { parse: [], roles: config.role ? [config.role] : [] },
-  });
+  await channels[kind].send(announcement(kind, url, config));
   console.log(`Aviso ${kind} enviado para o canal ${config.channels[kind]}.`);
 }
 const monitor = new Monitor({ state, username: config.username, persist: s => saveState(config.stateFile, s), notify });
@@ -58,7 +57,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /rank e /top registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /rank, /top, /clear, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
@@ -67,7 +66,7 @@ client.once(Events.ClientReady, async () => {
     for (const [kind, id] of Object.entries(config.channels)) {
       const channel = await guild.channels.fetch(id);
       const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages];
-      if (['welcome', 'leave'].includes(kind)) needed.push(PermissionFlagsBits.EmbedLinks);
+      needed.push(PermissionFlagsBits.EmbedLinks);
       if (!channel?.isTextBased() || channel.isThread() || !channel.permissionsFor(me)?.has(needed)) throw Error(`Canal ${kind} sem permissões`);
       channels[kind] = channel;
     }
@@ -102,6 +101,8 @@ client.on(Events.GuildMemberRemove, async member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await handleClear(interaction, config)) return;
+    if (await handleBackup(interaction, config)) return;
     if (await handleDivulgar(interaction, config)) return;
     if (await handleXp(interaction, config, state)) return;
     await handleTickets(interaction, config);

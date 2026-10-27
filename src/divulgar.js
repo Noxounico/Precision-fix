@@ -1,3 +1,4 @@
+import { socialButtons } from './social-cards.js';
 import { EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 
 export const divulgarCommand = new SlashCommandBuilder()
@@ -26,7 +27,12 @@ export function buildDivulgacao({ username, instagram, image }) {
   const fields = [{ name: 'TikTok', value: `➡️ https://www.tiktok.com/@${username}` }];
   const profile = instagramProfile(instagram);
   if (profile) fields.push({ name: 'Instagram', value: `➡️ ${profile}` });
-  const embed = new EmbedBuilder().setColor(0xffffff).setTitle('Como me achar? ⬇️').addFields(fields);
+  const embed = new EmbedBuilder().setColor(0xffffff)
+    .setAuthor({ name: `@${username} · As minhas redes` })
+    .setTitle('Fica por perto 🤍')
+    .setDescription('Vídeos, lives e um pouco do meu dia a dia.\nSegue as minhas redes e vem fazer parte da comunidade.')
+    .addFields(fields.map(field => ({ ...field, inline: true })))
+    .setFooter({ text: 'Nox · Obrigado por estares desse lado' });
   if (image) {
     if (!/^image\/(png|jpeg|webp|gif)$/.test(image.contentType || '')) throw Error('Escolhe uma imagem PNG, JPG, WEBP ou GIF.');
     embed.setImage(image.url);
@@ -69,6 +75,7 @@ export async function handleDivulgar(interaction, config) {
     await privateReply(error.message);
     return true;
   }
-  await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
+  const links = embed.toJSON().fields.map(field => [field.name, field.value.replace('➡️ ', '')]);
+  await interaction.reply({ embeds: [embed], components: socialButtons(links), allowedMentions: { parse: [] } });
   return true;
 }

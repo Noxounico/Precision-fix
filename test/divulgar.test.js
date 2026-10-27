@@ -6,7 +6,7 @@ import { buildDivulgacao, handleDivulgar, registerDivulgar } from '../src/divulg
 
 test('cartão só tem TikTok e Instagram, com barra branca e imagem', () => {
   const result = buildDivulgacao({ username: 'noxdu7', instagram: '@exemplo', image: { contentType: 'image/png', url: 'https://cdn.discordapp.com/test.png' } }).toJSON();
-  assert.equal(result.title, 'Como me achar? ⬇️');
+  assert.equal(result.title, 'Fica por perto 🤍');
   assert.equal(result.color, 0xffffff);
   assert.deepEqual(result.fields.map(field => field.name), ['TikTok', 'Instagram']);
   assert.equal(result.fields[0].value, '➡️ https://www.tiktok.com/@noxdu7');
