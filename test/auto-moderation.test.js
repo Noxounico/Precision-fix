@@ -3,11 +3,32 @@ import assert from 'node:assert/strict';
 import { ChannelType, PermissionsBitField, PermissionFlagsBits as P } from 'discord.js';
 import { assignJoinRole, handleBan, enforceBanChannel, banWarning } from '../src/auto-moderation.js';
 import { loadState, saveState } from '../src/state.js';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { runInNewContext } from 'node:vm';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const config = { guild: '123', joinRole: '1560785907509108787' };
 const channelId = '1560785968024522984';
+test('evento real de novas mensagens executa banimento antes do XP e reporta falhas', async () => {
+ const source = await readFile(new URL('../src/index.js', import.meta.url), 'utf8');
+ const start = source.indexOf('client.on(Events.MessageCreate,');
+ const end = source.indexOf('client.on(Events.Error,', start);
+ const calls = []; let listener;
+ runInNewContext(source.slice(start, end), {
+   client: { on: (_, callback) => { listener = callback; } }, Events: { MessageCreate: 'messageCreate' },
+   config, state: { banChannels: [channelId] }, enforceBanChannel,
+   awardXp: async () => { calls.push('xp'); }, saveState: async () => {}, report: () => calls.push('error'),
+ });
+ const message = { guildId: '123', channelId, author: { id: 'user', bot: false },
+   guild: { members: { ban: async () => calls.push('ban') } } };
+ await listener(message);
+ assert.deepEqual(calls, ['ban']);
+ await listener({ ...message, channelId: 'normal' });
+ assert.deepEqual(calls, ['ban', 'xp']);
+ message.guild.members.ban = async () => { throw Error('Missing Permissions'); };
+ await listener(message);
+ assert.deepEqual(calls, ['ban', 'xp', 'error']);
+});
 test('cargo atribuído apenas no servidor configurado', async () => {
  const calls = []; const member = { guild: { id: 'other' }, roles: { add: async id => calls.push(id) } };
  assert.equal(await assignJoinRole(member, config), false);

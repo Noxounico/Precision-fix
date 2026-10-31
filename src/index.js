@@ -121,7 +121,13 @@ client.on(Events.InteractionCreate, async interaction => {
     else if (!interaction.replied) await interaction.reply({ content, flags: 64 }).catch(() => {});
   }
 });
-client.on(Events.MessageCreate, message => {
+client.on(Events.MessageCreate, async message => {
+  try {
+    if (await enforceBanChannel(message, config, state)) return;
+  } catch (error) {
+    report('Banimento automático (verifique Banir membros e a hierarquia de cargos)', error);
+    return;
+  }
   void awardXp(message, config, state, s => saveState(config.stateFile, s))
     .catch(error => report('Guardar XP', error));
 });
