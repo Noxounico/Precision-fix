@@ -110,7 +110,7 @@ test('regista todos os comandos e apaga registos antigos e duplicados globais de
   assert.deepEqual(deletes, ['2']);
   assert.deepEqual(globalDeletes, ['global']);
   assert.deepEqual(edits, [['1', 'painel']]);
-  assert.deepEqual(creates, ['divulgar', 'rank', 'top', 'clear', 'backup', 'bckup']);
+  assert.deepEqual(creates, ['divulgar', 'regras', 'rank', 'top', 'clear', 'backup', 'bckup']);
 });
 
 test('se o registo dos comandos atuais falhar, não remove os comandos antigos', async () => {

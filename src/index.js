@@ -1,3 +1,4 @@
+import { handleRegras } from './regras.js';
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
 import { announcement } from './social-cards.js';
 import { handleClear } from './moderation.js';
@@ -57,7 +58,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /rank, /top, /clear, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /rank, /top, /clear, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
@@ -101,6 +102,7 @@ client.on(Events.GuildMemberRemove, async member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await handleRegras(interaction, config)) return;
     if (await handleClear(interaction, config)) return;
     if (await handleBackup(interaction, config)) return;
     if (await handleDivulgar(interaction, config)) return;
