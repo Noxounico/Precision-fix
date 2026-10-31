@@ -1,3 +1,4 @@
+import { assignJoinRole, handleBan, enforceBanChannel } from './auto-moderation.js';
 import { handleRegras } from './regras.js';
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
 import { announcement } from './social-cards.js';
@@ -58,7 +59,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /regras, /rank, /top, /clear, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /rank, /top, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
@@ -89,7 +90,10 @@ client.once(Events.ClientReady, async () => {
   }
 });
 client.on(Events.GuildMemberAdd, async member => {
-  if (member.guild.id !== config.guild || !channels.welcome) return;
+  if (member.guild.id !== config.guild) return;
+  try { await assignJoinRole(member, config); }
+  catch (error) { report('Atribuir cargo de entrada (verifique Gerir cargos e a hierarquia)', error); }
+  if (!channels.welcome) return;
   try {
     await channels.welcome.send(memberMessage(member, true));
   } catch (error) { report('Boas-vindas', error); }
@@ -102,6 +106,7 @@ client.on(Events.GuildMemberRemove, async member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleRegras(interaction, config)) return;
     if (await handleClear(interaction, config)) return;
     if (await handleBackup(interaction, config)) return;

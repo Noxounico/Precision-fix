@@ -7,6 +7,7 @@ export async function loadState(file) {
     for (const account of Object.values(state.accounts)) {
       if (!account || typeof account.live !== 'boolean' || !Array.isArray(account.videos) || !account.videos.every(id => typeof id === 'string')) throw Error('invalid');
     }
+    if (state.banChannels !== undefined && (!Array.isArray(state.banChannels) || !state.banChannels.every(id => typeof id === 'string' && /^\d{17,20}$/.test(id)))) throw Error('invalid');
     if (state.xp !== undefined) {
       if (!state.xp || typeof state.xp !== 'object' || Array.isArray(state.xp)) throw Error('invalid');
       for (const members of Object.values(state.xp)) {

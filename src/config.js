@@ -1,6 +1,7 @@
 import 'dotenv/config';
 // Public server/profile settings supplied by the owner. Never store tokens here.
 const defaults = Object.freeze({
+  JOIN_ROLE_ID: '1560785907509108787',
   GUILD_ID: '1560784472083800298',
   WELCOME_CHANNEL_ID: '1560785968024522984',
   LEAVE_CHANNEL_ID: '1560785974173237369',
@@ -19,7 +20,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());
   if (missing.length) throw new Error(`Falta configurar: ${missing.join(', ')}`);
-  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID']) {
+  for (const key of [...required.filter(k => k.endsWith('_ID')), 'JOIN_ROLE_ID', 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID']) {
     if (env[key] && !/^\d{17,20}$/.test(env[key])) throw new Error(`${key}: ID Discord inválido`);
   }
   if (env.DIVULGAR_IMAGE_URL) {
@@ -44,6 +45,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   return {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
+    joinRole: env.JOIN_ROLE_ID,
     role: env.NOTIFICATION_ROLE_ID || null,
     // Owner-reported missed post, verified against the public TikTok redirect.
     videoRecovery: username === 'noxdu7' ? '7700986106065489185' : null,
