@@ -39,5 +39,6 @@ export async function enforceBanChannel(message, config, state) {
   // Include threads below an activated channel, so they cannot bypass the rule.
   if (!state.banChannels?.includes(message.channelId) && !state.banChannels?.includes(message.channel?.parentId)) return false;
   await message.guild.members.ban(message.author.id, { reason: 'Enviou mensagem no canal com aviso NÃO MANDE MENSAGEM AQUI' });
+  await message.delete();
   return true;
 }

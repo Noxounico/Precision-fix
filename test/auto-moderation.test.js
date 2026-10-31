@@ -20,14 +20,14 @@ test('evento real de novas mensagens executa banimento antes do XP e reporta fal
    awardXp: async () => { calls.push('xp'); }, saveState: async () => {}, report: () => calls.push('error'),
  });
  const message = { guildId: '123', channelId, author: { id: 'user', bot: false },
-   guild: { members: { ban: async () => calls.push('ban') } } };
+   guild: { members: { ban: async () => calls.push('ban') } }, delete: async () => calls.push('delete') };
  await listener(message);
- assert.deepEqual(calls, ['ban']);
+ assert.deepEqual(calls, ['ban', 'delete']);
  await listener({ ...message, channelId: 'normal' });
- assert.deepEqual(calls, ['ban', 'xp']);
+ assert.deepEqual(calls, ['ban', 'delete', 'xp']);
  message.guild.members.ban = async () => { throw Error('Missing Permissions'); };
  await listener(message);
- assert.deepEqual(calls, ['ban', 'xp', 'error']);
+ assert.deepEqual(calls, ['ban', 'delete', 'xp', 'error']);
 });
 test('cargo atribuído apenas no servidor configurado', async () => {
  const calls = []; const member = { guild: { id: 'other' }, roles: { add: async id => calls.push(id) } };
@@ -53,9 +53,9 @@ test('/ban exige administrador, publica aviso e persiste após reinício', async
 });
 test('banimento aplica-se a mensagens e threads; ignora bots, webhooks e outros canais/servidores', async () => {
  const bans=[]; const state={banChannels:[channelId]};
- const msg={guildId:'123',channelId,author:{id:'user',bot:false},guild:{members:{ban:async id=>bans.push(id)}}};
+ const msg={guildId:'123',channelId,author:{id:'user',bot:false},guild:{members:{ban:async id=>bans.push(id)}},delete:async()=>bans.push('delete')};
  for(const patch of [{guildId:'other'},{channelId:'other'},{author:{bot:true}},{webhookId:'hook'}]) assert.equal(await enforceBanChannel({...msg,...patch},config,state),false);
  assert.equal(await enforceBanChannel(msg,config,state),true);
  assert.equal(await enforceBanChannel({...msg,channelId:'thread',channel:{parentId:channelId}},config,state),true);
- assert.deepEqual(bans,['user','user']);
+ assert.deepEqual(bans,['user','delete','user','delete']);
 });

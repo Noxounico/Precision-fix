@@ -125,7 +125,7 @@ client.on(Events.MessageCreate, async message => {
   try {
     if (await enforceBanChannel(message, config, state)) return;
   } catch (error) {
-    report('Banimento automático (verifique Banir membros e a hierarquia de cargos)', error);
+    report('Banimento automático ou eliminação da mensagem (verifique Banir membros, Gerir mensagens e a hierarquia de cargos)', error);
     return;
   }
   void awardXp(message, config, state, s => saveState(config.stateFile, s))
