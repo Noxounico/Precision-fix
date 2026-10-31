@@ -87,6 +87,7 @@ O estado guarda a URL e o hash do banner aplicado para evitar alterações repet
 
 ## Todos os comandos
 
+- `/regras`: mostra publicamente as sete regras do servidor, sem a regra dos tickets. Disponível a todos os membros. Reinicie o bot após o deploy para registar o comando.
 - `/divulgar`: publica TikTok, Instagram e foto. Requer **Gerir servidor**.
 - `/painel`: publica um painel com **Abrir ticket** no canal atual. Requer **Gerir servidor**. Qualquer membro com acesso ao painel pode clicar para abrir o seu ticket privado.
 - `/rank [usuario]`: mostra nível, XP e posição. Disponível aos membros.
