@@ -66,7 +66,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /regras, /xp, /rank, /top, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     voiceXp.refresh(guild);

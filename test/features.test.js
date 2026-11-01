@@ -27,19 +27,20 @@ test('XP: cooldown por membro, bots/webhooks/outro servidor ignorados e persist�
   assert.equal(await awardXp({ ...msg, createdTimestamp: 160001 }, config, restored, async () => assert.fail()), false);
   assert.deepEqual(levelInfo(100), { level: 1, next: 400 });
 });
-test('/rank e /top leem o XP real, ordenam e não enviam pings', async () => {
+test('/xp ver lê XP real e comandos antigos são ignorados', async () => {
   const state = { xp: { '123': { a: { xp: 300 }, b: { xp: 1200 } } } };
   assert.deepEqual(leaderboard(state, '123').map(([id]) => id), ['b', 'a']);
   const replies = [];
-  const interaction = { isChatInputCommand: () => true, commandName: 'rank', guildId: '123', user: { id: 'a' }, options: { getUser: () => null }, reply: async data => replies.push(data) };
+  const interaction = { isChatInputCommand: () => true, commandName: 'xp', guildId: '123', user: { id: 'a' }, options: { getSubcommand: () => 'ver' }, reply: async data => replies.push(data) };
   await handleXp(interaction, config, state);
   const rank = replies[0].embeds[0].toJSON();
   assert.equal(rank.fields[0].value, '1');
   assert.equal(rank.fields[2].value, '#2');
   interaction.commandName = 'top';
-  await handleXp(interaction, config, state);
-  assert.match(replies[1].embeds[0].toJSON().description, /^\*\*1\.\*\* <@b>/);
-  assert.deepEqual(replies[1].allowedMentions.parse, []);
+  assert.equal(await handleXp(interaction, config, state), false);
+  interaction.commandName = 'rank';
+  assert.equal(await handleXp(interaction, config, state), false);
+  assert.deepEqual(replies[0].allowedMentions.parse, []);
 });
 function ticketInteraction(overrides = {}) {
   const calls = { replies: [], edits: [], creates: [], sends: [], overwrites: [], channelEdits: [] };
@@ -110,7 +111,7 @@ test('regista todos os comandos e apaga registos antigos e duplicados globais de
   assert.deepEqual(deletes, ['2']);
   assert.deepEqual(globalDeletes, ['global']);
   assert.deepEqual(edits, [['1', 'painel']]);
-  assert.deepEqual(creates, ['ban', 'divulgar', 'regras', 'xp', 'rank', 'top', 'clear', 'backup', 'bckup']);
+  assert.deepEqual(creates, ['ban', 'divulgar', 'regras', 'xp', 'clear', 'backup', 'bckup']);
 });
 
 test('se o registo dos comandos atuais falhar, não remove os comandos antigos', async () => {

@@ -145,4 +145,4 @@ Um administrador pode executar `/ban` num canal de texto para publicar o aviso e
 
 ### Níveis e XP por call
 
-Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` ou `/rank` para consultar XP. Mensagens dão 15 XP com cooldown de 60 segundos. Calls dão 10 XP por minuto com pelo menos dois humanos; bots, canal AFK e membros ensurdecidos não ganham XP. Aprendiz II dá 2× e Mestre II dá 3×. Os nove cargos são acumulados; o bot precisa de Gerir cargos e estar acima deles. Configure as permissões dos cargos no Discord conforme o quadro. XP mantém-se no STATE_FILE; tempo parcial de call reinicia quando o bot reinicia.
+Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` para consultar XP. Mensagens dão 15 XP com cooldown de 60 segundos. Calls dão 10 XP por minuto com pelo menos dois humanos; bots, canal AFK e membros ensurdecidos não ganham XP. Aprendiz II dá 2× e Mestre II dá 3×. Os nove cargos são acumulados; o bot precisa de Gerir cargos e estar acima deles. Configure as permissões dos cargos no Discord conforme o quadro. XP mantém-se no STATE_FILE; tempo parcial de call reinicia quando o bot reinicia.

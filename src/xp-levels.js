@@ -20,7 +20,7 @@ export function levelsEmbed() {
  `
 
 Ganhe mais XP interagindo no servidor
-Para ver o seu XP digite **/xp ver** ou **/rank**.
+Para ver o seu XP digite **/xp ver**.
 Todas as permissões concedidas em níveis menores se mantêm.
 
 Mensagens: 15 XP por minuto. Call: 10 XP por minuto com pelo menos duas pessoas, sem bots, AFK ou ensurdecidos. Multiplicador: 2× no Aprendiz II e 3× no Mestre II.`);
