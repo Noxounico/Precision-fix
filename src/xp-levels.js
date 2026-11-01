@@ -15,15 +15,12 @@ export const xpCommand = new SlashCommandBuilder().setName('xp').setDescription(
  .addSubcommand(s=>s.setName('mensagem').setDescription('Publicar o quadro de níveis neste canal (Gerir servidor).'))
  .addSubcommand(s=>s.setName('ver').setDescription('Consultar o teu XP.'));
 export function levelsEmbed() {
+ const lines = tiers.map(([xp, id, , benefit], index) => {
+  const value = String(xp).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (index > 0 && index % 3 === 0 ? '\n' : '') + '<@&' + id + '> `'+ value + ' XP` - ' + benefit;
+ });
  return new EmbedBuilder().setColor(0x5865f2).setTitle('✨ Níveis').setDescription(
- tiers.map(([xp,id,,benefit])=>'<@&'+id+'> **'+xp.toLocaleString('pt-PT')+' XP** - '+benefit).join('\n')+
- `
-
-Ganhe mais XP interagindo no servidor
-Para ver o seu XP digite **/xp ver**.
-Todas as permissões concedidas em níveis menores se mantêm.
-
-Mensagens: 15 XP por minuto. Call: 10 XP por minuto com pelo menos duas pessoas, sem bots, AFK ou ensurdecidos. Multiplicador: 2× no Aprendiz II e 3× no Mestre II.`);
+  lines.join('\n') + '\n\nGanhe mais **XP** interagindo no servidor\nPara ver o seu XP digite `/xp ver` no canal #cmds\nTodas as permissões concedidas em níveis menores se mantêm.');
 }
 export async function publishLevels(interaction) {
  if (!interaction.memberPermissions?.has(P.ManageGuild)) {
