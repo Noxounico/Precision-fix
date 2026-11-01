@@ -1,6 +1,7 @@
+import { multiplier, xpCommand, publishLevels, syncXpRoles } from './xp-levels.js';
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
-export const xpCommands = [
+export const xpCommands = [xpCommand,
   new SlashCommandBuilder().setName('rank').setDescription('Mostra o teu nível e XP.')
     .addUserOption(option => option.setName('usuario').setDescription('Consultar outro membro (opcional).')),
   new SlashCommandBuilder().setName('top').setDescription('Top 10 de XP do servidor.'),
@@ -19,20 +20,24 @@ export async function awardXp(message, config, state, persist) {
   const previous = guild[message.author.id];
   const now = message.createdTimestamp;
   if (!Number.isFinite(now) || (previous && now - previous.lastAwardAt < 60000)) return false;
-  guild[message.author.id] = { xp: (previous?.xp || 0) + 15, lastAwardAt: now };
+  guild[message.author.id] = { xp: (previous?.xp || 0) + 15 * multiplier(previous?.xp || 0), lastAwardAt: now };
   await persist(state);
+  await syncXpRoles(message.member, guild[message.author.id].xp);
   return true;
 }
 export async function handleXp(interaction, config, state) {
-  if (!interaction.isChatInputCommand() || !['rank', 'top'].includes(interaction.commandName)) return false;
+  if (!interaction.isChatInputCommand() || !['rank', 'top', 'xp'].includes(interaction.commandName)) return false;
   if (interaction.guildId !== config.guild) {
     await interaction.reply({ content: 'Este comando só funciona no servidor configurado.', flags: 64 });
     return true;
   }
+  if (interaction.commandName === 'xp' && interaction.options.getSubcommand() === 'mensagem') {
+    await publishLevels(interaction); return true;
+  }
   const entries = leaderboard(state, config.guild);
   const embed = new EmbedBuilder().setColor(0xffffff);
-  if (interaction.commandName === 'rank') {
-    const user = interaction.options.getUser('usuario') || interaction.user;
+  if (interaction.commandName === 'rank' || interaction.commandName === 'xp') {
+    const user = (interaction.commandName === 'rank' ? interaction.options.getUser('usuario') : null) || interaction.user;
     const xp = state.xp?.[config.guild]?.[user.id]?.xp || 0;
     const { level, next } = levelInfo(xp);
     const position = entries.findIndex(([id]) => id === user.id);

@@ -1,3 +1,4 @@
+import { VoiceXp } from './voice-xp.js';
 import { assignJoinRole, handleBan, enforceBanChannel } from './auto-moderation.js';
 import { handleRegras } from './regras.js';
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
@@ -18,8 +19,14 @@ import { awardXp, handleXp } from './xp.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
 const channels = {};
+const voiceXp = new VoiceXp(config, state, s => saveState(config.stateFile, s));
+let voiceTimer;
+let voiceBusy = false;
+client.on(Events.VoiceStateUpdate, (oldVoice, newVoice) => {
+  voiceXp.refresh(newVoice.guild);
+});
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
   await channels[kind].send(announcement(kind, url, config));
@@ -59,9 +66,16 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /regras, /rank, /top, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /xp, /rank, /top, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
+    voiceXp.refresh(guild);
+    voiceTimer = setInterval(async () => {
+      if (voiceBusy) return;
+      voiceBusy = true;
+      try { await voiceXp.tick(guild); } catch (error) { report('XP de call e cargos', error); }
+      finally { voiceBusy = false; }
+    }, 60000);
     void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
       .catch(error => report('Atualizar permissões dos tickets', error));
     const me = guild.members.me;
@@ -134,6 +148,7 @@ client.on(Events.MessageCreate, async message => {
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
   stopping = true;
+  clearInterval(voiceTimer);
   for (const timer of timers) clearTimeout(timer);
   client.destroy();
 });

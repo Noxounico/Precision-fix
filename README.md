@@ -142,3 +142,7 @@ Para maior cobertura, o bot precisa de ver os canais, ler histórico e ter **Ser
 Novos membros recebem o cargo `1560785907509108787` (configurável em `JOIN_ROLE_ID`). O bot precisa de **Gerir cargos** e de um cargo acima deste.
 
 Um administrador pode executar `/ban` num canal de texto para publicar o aviso e ativar o banimento automático de quem escrever nesse canal ou nas suas threads. Bots e webhooks são ignorados. O bot precisa de **Banir membros**, **Ver canal** e **Enviar mensagens**; a hierarquia do Discord aplica-se. A configuração fica guardada em `STATE_FILE`; mantém esse ficheiro num volume persistente. Mensagens antigas não causam banimento.
+
+### Níveis e XP por call
+
+Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` ou `/rank` para consultar XP. Mensagens dão 15 XP com cooldown de 60 segundos. Calls dão 10 XP por minuto com pelo menos dois humanos; bots, canal AFK e membros ensurdecidos não ganham XP. Aprendiz II dá 2× e Mestre II dá 3×. Os nove cargos são acumulados; o bot precisa de Gerir cargos e estar acima deles. Configure as permissões dos cargos no Discord conforme o quadro. XP mantém-se no STATE_FILE; tempo parcial de call reinicia quando o bot reinicia.
