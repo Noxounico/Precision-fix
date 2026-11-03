@@ -1,4 +1,5 @@
 import { multiplier, syncXpRoles } from './xp-levels.js';
+import { announceLevel } from './level-announcements.js';
 export class VoiceXp {
  constructor(config,state,persist,now=()=>Date.now()) {
   Object.assign(this,{config,state,persist,now}); this.active=new Map(); this.credit=new Map(); this.last=now();
@@ -28,11 +29,15 @@ export class VoiceXp {
    credit.ms-=minutes*60000;
    const records=(this.state.xp||={})[this.config.guild]||= {};
    const record=records[id]||={xp:0,lastAwardAt:0};
+   const before=record.xp;
    for(let i=0;i<minutes;i++) record.xp+=10*multiplier(record.xp);
-   members.push([credit.member,record.xp]);
+   members.push([credit.member,record.xp,before]);
   }
   if(!members.length) return;
   await this.persist(this.state);
-  for(const [member,xp] of members) await syncXpRoles(member,xp);
+  for(const [member,xp,before] of members) {
+   await announceLevel(guild,member.id,before,xp);
+   await syncXpRoles(member,xp);
+  }
  }
 }

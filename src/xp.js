@@ -1,5 +1,6 @@
 import { multiplier, xpCommand, publishLevels, syncXpRoles } from './xp-levels.js';
 import { EmbedBuilder } from 'discord.js';
+import { announceLevel } from './level-announcements.js';
 
 export const xpCommands = [xpCommand];
 export function levelInfo(xp) {
@@ -18,6 +19,7 @@ export async function awardXp(message, config, state, persist) {
   if (!Number.isFinite(now) || (previous && now - previous.lastAwardAt < 60000)) return false;
   guild[message.author.id] = { xp: (previous?.xp || 0) + 15 * multiplier(previous?.xp || 0), lastAwardAt: now };
   await persist(state);
+  await announceLevel(message.guild, message.author.id, previous?.xp || 0, guild[message.author.id].xp);
   await syncXpRoles(message.member, guild[message.author.id].xp);
   return true;
 }
