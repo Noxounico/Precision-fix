@@ -7,7 +7,6 @@ import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.
 import { announcement } from './social-cards.js';
 import { handleClear } from './moderation.js';
 import { handleBackup } from './backup.js';
-import { memberMessage } from './member-messages.js';
 import { syncTicketAccess } from './transcript.js';
 import { applyBanner } from './profile.js';
 import { readConfig } from './config.js';
@@ -84,6 +83,7 @@ client.once(Events.ClientReady, async () => {
       .catch(error => report('Atualizar permissões dos tickets', error));
     const me = guild.members.me;
     for (const [kind, id] of Object.entries(config.channels)) {
+      if (kind === 'welcome' || kind === 'leave') continue;
       const channel = await guild.channels.fetch(id);
       const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages];
       needed.push(PermissionFlagsBits.EmbedLinks);
@@ -111,16 +111,6 @@ client.on(Events.GuildMemberAdd, async member => {
   if (member.guild.id !== config.guild) return;
   try { await assignJoinRole(member, config); }
   catch (error) { report('Atribuir cargo de entrada (verifique Gerir cargos e a hierarquia)', error); }
-  if (!channels.welcome) return;
-  try {
-    await channels.welcome.send(memberMessage(member, true));
-  } catch (error) { report('Boas-vindas', error); }
-});
-client.on(Events.GuildMemberRemove, async member => {
-  if (member.guild.id !== config.guild || !channels.leave) return;
-  try {
-    await channels.leave.send(memberMessage(member, false));
-  } catch (error) { report('Mensagem de saída', error); }
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
