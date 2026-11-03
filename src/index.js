@@ -1,4 +1,5 @@
 import { VoiceXp } from './voice-xp.js';
+import { startMemberCounter } from './member-counter.js';
 import { assignJoinRole, handleBan, enforceBanChannel } from './auto-moderation.js';
 import { handleRegras } from './regras.js';
 import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
@@ -23,6 +24,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 const channels = {};
 const voiceXp = new VoiceXp(config, state, s => saveState(config.stateFile, s));
 let voiceTimer;
+let stopMemberCounter;
 let voiceBusy = false;
 client.on(Events.VoiceStateUpdate, (oldVoice, newVoice) => {
   voiceXp.refresh(newVoice.guild);
@@ -69,6 +71,7 @@ client.once(Events.ClientReady, async () => {
       console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
+    stopMemberCounter = startMemberCounter(guild, report);
     voiceXp.refresh(guild);
     voiceTimer = setInterval(async () => {
       if (voiceBusy) return;
@@ -149,6 +152,7 @@ client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
   stopping = true;
   clearInterval(voiceTimer);
+  stopMemberCounter?.();
   for (const timer of timers) clearTimeout(timer);
   client.destroy();
 });
