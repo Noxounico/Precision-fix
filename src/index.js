@@ -1,4 +1,5 @@
 import { VoiceXp } from './voice-xp.js';
+import { restrictInteraction, restrictMessage } from './command-access.js';
 import { handleSetup } from './level-announcements.js';
 import { startMemberCounter } from './member-counter.js';
 import { assignJoinRole, handleBan, enforceBanChannel } from './auto-moderation.js';
@@ -114,6 +115,7 @@ client.on(Events.GuildMemberAdd, async member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await restrictInteraction(interaction, config, state)) return;
     if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleRegras(interaction, config)) return;
     if (await handleClear(interaction, config)) return;
@@ -132,6 +134,7 @@ client.on(Events.InteractionCreate, async interaction => {
 client.on(Events.MessageCreate, async message => {
   try {
     if (await enforceBanChannel(message, config, state)) return;
+    if (await restrictMessage(message, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleSetup(message, config)) return;
   } catch (error) {
     report('Banimento automático ou eliminação da mensagem (verifique Banir membros, Gerir mensagens e a hierarquia de cargos)', error);

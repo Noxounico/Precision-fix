@@ -16,7 +16,7 @@ test('evento real de novas mensagens executa banimento antes do XP e reporta fal
  const calls = []; let listener;
  runInNewContext(source.slice(start, end), {
    client: { on: (_, callback) => { listener = callback; } }, Events: { MessageCreate: 'messageCreate' },
-   config, state: { banChannels: [channelId] }, enforceBanChannel, handleSetup: async () => false,
+   config, state: { banChannels: [channelId] }, enforceBanChannel, handleSetup: async () => false, restrictMessage: async () => false,
    awardXp: async () => { calls.push('xp'); }, saveState: async () => {}, report: () => calls.push('error'),
  });
  const message = { guildId: '123', channelId, author: { id: 'user', bot: false },
