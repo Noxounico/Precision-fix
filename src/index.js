@@ -1,5 +1,5 @@
 import { VoiceXp } from './voice-xp.js';
-import { restrictInteraction, restrictMessage } from './command-access.js';
+import { restrictMessage } from './command-access.js';
 import { handleSetup } from './level-announcements.js';
 import { startMemberCounter } from './member-counter.js';
 import { assignJoinRole, handleBan, enforceBanChannel } from './auto-moderation.js';
@@ -115,7 +115,6 @@ client.on(Events.GuildMemberAdd, async member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
-    if (await restrictInteraction(interaction, config, state)) return;
     if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleRegras(interaction, config)) return;
     if (await handleClear(interaction, config)) return;
