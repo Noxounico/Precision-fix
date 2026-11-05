@@ -8,7 +8,7 @@ const defaults = Object.freeze({
   LIVE_CHANNEL_ID: '1560785984482836621',
   VIDEO_CHANNEL_ID: '1564086426969182329',
   TIKTOK_USERNAME: 'noxdu7',
-  TICKET_SUPPORT_ROLE_IDS: '1562143820605300801,1562143823193309202',
+  TICKET_SUPPORT_ROLE_IDS: '1567843660224012298,1563910348459737178,1567833576760680548,1567833641055424573,1567837093223469137,1567844705646018611',
   TICKET_TRANSCRIPT_CHANNEL_ID: '1562143825298980895',
   INSTAGRAM_USERNAME: '_.rafaeldu7',
   BOT_BANNER_URL: 'https://media.discordapp.net/attachments/1560786047456120832/1562020832543248465/814fb6b110e20c2d902c71f6dda0caf3.gif?ex=6adfb903&is=6ade6783&hm=97bb6f06f2388c1ebbba6f1100fd4ab7d39b80444e5c1e5dd215338916bdc697&=&width=501&height=218',
@@ -33,6 +33,8 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     try { banner = new URL(env.BOT_BANNER_URL); } catch { throw new Error('BOT_BANNER_URL inválido'); }
     if (banner.protocol !== 'https:') throw new Error('BOT_BANNER_URL deve usar HTTPS');
   }
+  // Migrate the previous deployment setting as well as the built-in defaults.
+  if (env.TICKET_SUPPORT_ROLE_IDS.replace(/\s/g, '') === '1562143820605300801,1562143823193309202') env.TICKET_SUPPORT_ROLE_IDS = defaults.TICKET_SUPPORT_ROLE_IDS;
   const ticketSupportRoles = [...new Set(env.TICKET_SUPPORT_ROLE_IDS.split(',').map(id => id.trim()))];
   if (!ticketSupportRoles.length || ticketSupportRoles.some(id => !/^\d{17,20}$/.test(id))) throw new Error('TICKET_SUPPORT_ROLE_IDS inválido');
   const username = env.TIKTOK_USERNAME.replace(/^@/, '');
