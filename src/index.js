@@ -1,4 +1,5 @@
 import { VoiceXp } from './voice-xp.js';
+import { recoverXpFromRoles } from './xp-recovery.js';
 import { restrictMessage } from './command-access.js';
 import { handleSetup } from './level-announcements.js';
 import { startMemberCounter } from './member-counter.js';
@@ -72,6 +73,10 @@ client.once(Events.ClientReady, async () => {
       console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
+    try {
+      const restored = await recoverXpFromRoles(guild, state, s => saveState(config.stateFile, s));
+      console.log(`Proteção de XP: ${restored} membros recuperados pelo cargo. Estado: ${config.stateFile}. Preserve este ficheiro num volume persistente.`);
+    } catch (error) { report('Recuperação de XP pelos cargos', error); }
     stopMemberCounter = startMemberCounter(guild, report);
     voiceXp.refresh(guild);
     voiceTimer = setInterval(async () => {
