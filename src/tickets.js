@@ -1,4 +1,5 @@
 import { scheduleTicketDeletion } from './ticket-cleanup.js';
+import { shopRoles, isShopTicket } from './shop-access.js';
 import { ticketPanel, ticketWelcome } from './ticket-ui.js';
 import { supportOverwrites, deliverTranscript } from './transcript.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
@@ -9,12 +10,12 @@ export const painelCommand = new SlashCommandBuilder().setName('painel')
 const buttons = (id, label, style) => [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(id).setLabel(label).setEmoji(id === 'tickets:open' ? '🎫' : '🔒').setStyle(style))];
 const opening = new Set();
 const closing = new Set();
-const ticketOwner = channel => channel?.topic?.match(/^precision-ticket:(\d+)$/)?.[1];
+const ticketOwner = channel => channel?.topic?.match(/^precision-(?:ticket|shop):(\d+)$/)?.[1];
 const has = (permissions, ...flags) => !!permissions?.has(flags);
 
 export async function handleTickets(interaction, config) {
   const panel = interaction.isChatInputCommand() && interaction.commandName === 'painel';
-  const button = interaction.isButton() && ['tickets:open', 'tickets:close'].includes(interaction.customId);
+  const button = interaction.isButton() && ['tickets:open', 'shop:open', 'tickets:close'].includes(interaction.customId);
   if (!panel && !button) return false;
   const reply = content => interaction.reply({ content, flags: 64, allowedMentions: { parse: [] } });
   if (interaction.guildId !== config.guild) {
@@ -35,28 +36,30 @@ export async function handleTickets(interaction, config) {
   if (!has(me.permissions, P.ManageChannels, P.ManageRoles)) {
     await reply('Preciso das permissões Gerir canais e Gerir cargos para criar tickets e configurar o acesso privado.'); return true;
   }
-  if (interaction.customId === 'tickets:open') {
-    const key = `${config.guild}:${interaction.user.id}`;
+  const shop = interaction.customId === 'shop:open' || isShopTicket(interaction.channel);
+  const roles = shop ? shopRoles : config.ticketSupportRoles;
+  if (['tickets:open', 'shop:open'].includes(interaction.customId)) {
+    const key = `${config.guild}:${interaction.user.id}:${shop}`;
     if (opening.has(key)) { await reply('O teu ticket já está a ser aberto.'); return true; }
     opening.add(key);
     try {
       await interaction.deferReply({ flags: 64 });
       const channels = await interaction.guild.channels.fetch();
-      const existing = channels.find(channel => ticketOwner(channel) === interaction.user.id);
+      const existing = channels.find(channel => ticketOwner(channel) === interaction.user.id && isShopTicket(channel) === shop);
       if (existing) { await interaction.editReply({ content: `Já tens um ticket aberto: <#${existing.id}>.`, allowedMentions: { parse: [] } }); return true; }
-      for (const id of config.ticketSupportRoles) {
+      for (const id of roles) {
         const role = await interaction.guild.roles.fetch(id);
         if (!role || role.id === interaction.guild.id || role.managed) throw Error('Cargo de suporte inválido');
       }
-      const overwrites = supportOverwrites(interaction.guild, me.id, config.ticketSupportRoles, interaction.user.id);
+      const overwrites = supportOverwrites(interaction.guild, me.id, roles, interaction.user.id);
       // No inherited category permissions: every ticket starts private.
       const channel = await interaction.guild.channels.create({
-        name: `ticket-${interaction.user.id}`, type: ChannelType.GuildText,
-        topic: `precision-ticket:${interaction.user.id}`, permissionOverwrites: overwrites,
+        name: `${shop ? 'compra' : 'ticket'}-${interaction.user.id}`, type: ChannelType.GuildText,
+        topic: `precision-${shop ? 'shop' : 'ticket'}:${interaction.user.id}`, permissionOverwrites: overwrites,
         reason: `Ticket solicitado pelo membro ${interaction.user.id}`,
       });
       await interaction.editReply({ content: `Ticket aberto: <#${channel.id}>.`, allowedMentions: { parse: [] } });
-      await channel.send({ embeds: [ticketWelcome(interaction.guild, interaction.user.id, config.ticketSupportRoles)],
+      await channel.send({ embeds: [ticketWelcome(interaction.guild, interaction.user.id, roles)],
         components: buttons('tickets:close', 'Fechar ticket', ButtonStyle.Secondary), allowedMentions: { parse: [] } });
     } finally { opening.delete(key); }
     return true;
@@ -64,8 +67,8 @@ export async function handleTickets(interaction, config) {
   const owner = ticketOwner(interaction.channel);
   if (!owner) { await reply('Este canal não é um ticket aberto deste bot.'); return true; }
   const member = await interaction.guild.members.fetch(interaction.user.id);
-  const staff = config.ticketSupportRoles.some(id => member.roles.cache.has(id));
-  if (!staff) { await reply('Só os dois cargos de suporte configurados podem fechar este ticket.'); return true; }
+  const staff = roles.some(id => member.roles.cache.has(id));
+  if (!staff) { await reply('Só a equipa autorizada deste ticket pode fechá-lo.'); return true; }
   if (closing.has(interaction.channelId)) { await reply('Este ticket já está a ser fechado.'); return true; }
   closing.add(interaction.channelId);
   try {
@@ -74,7 +77,7 @@ export async function handleTickets(interaction, config) {
     // The archive succeeded. Only now mark this channel for deletion.
     await interaction.channel.permissionOverwrites.edit(owner, { SendMessages: false });
     const deleteAt = Date.now() + 5000;
-    await interaction.channel.edit({ name: `fechado-${owner}`, topic: `precision-ticket-closed:${owner}:${deleteAt}` });
+    await interaction.channel.edit({ name: `fechado-${owner}`, topic: `precision-${shop ? 'shop' : 'ticket'}-closed:${owner}:${deleteAt}` });
     scheduleTicketDeletion(interaction.channel, deleteAt);
     await interaction.editReply(delivery.dmSent
       ? 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição enviada para o arquivo e para o privado do autor.'

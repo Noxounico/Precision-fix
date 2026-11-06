@@ -90,9 +90,17 @@ test('ticket: autor e administrador sem cargo de suporte não podem fechar', asy
   for (const memberPermissions of [perms(), perms(P.ManageGuild, P.Administrator)]) {
     const denied = ticketInteraction({ customId: 'tickets:close', memberPermissions });
     await handleTickets(denied, { ...config, ticketSupportRoles: ['staff'] });
-    assert.match(denied.calls.replies[0].content, /Só os dois cargos/);
+    assert.match(denied.calls.replies[0].content, /Só a equipa autorizada/);
     assert.equal(denied.calls.overwrites.length, 0);
   }
+});
+test('compra só permite o cargo da loja, comprador e bot', async () => {
+  const i = ticketInteraction({ customId: 'shop:open' });
+  i.guild.roles = { fetch: async id => ({ id, managed: false }) };
+  await handleTickets(i, { ...config, ticketSupportRoles: ['other-staff'] });
+  const channel = i.calls.creates[0];
+  assert.equal(channel.topic, 'precision-shop:456');
+  assert.deepEqual(channel.permissionOverwrites.map(rule => rule.id), ['123', 'bot', '1567315868344524833', '456']);
 });
 test('/painel requer Gerir servidor; membro comum não publica painel', async () => {
   const denied = ticketInteraction({ isChatInputCommand: () => true, commandName: 'painel' });

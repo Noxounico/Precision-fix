@@ -6,7 +6,7 @@ export function shopPayload() {
     files: [new AttachmentBuilder(fileURLToPath(new URL('./assets/nox-crosshair.png', import.meta.url)), { name: 'nox-crosshair.png' })],
     embeds: [new EmbedBuilder().setColor(0x5865f2).setImage('attachment://nox-crosshair.png'),
       new EmbedBuilder().setColor(0x5865f2).setDescription('Adquira seu aim abaixo ⬇️')],
-    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('tickets:open').setLabel('Comprar').setEmoji('🛒').setStyle(ButtonStyle.Secondary))],
+    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('shop:open').setLabel('Comprar').setEmoji('🛒').setStyle(ButtonStyle.Secondary))],
     allowedMentions: { parse: [] },
   };
 }
