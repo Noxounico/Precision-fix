@@ -1,4 +1,6 @@
-import { Client, GatewayIntentBits, Events, PermissionFlagsBits } from 'discord.js';
+import { Client, GatewayIntentBits, Events, Partials, PermissionFlagsBits } from 'discord.js';
+import { handleNotifications } from './notifications.js';
+import { createAuditLogger } from './audit.js';
 import { announcement } from './social-cards.js';
 import { handleClear } from './moderation.js';
 import { handleBackup } from './backup.js';
@@ -16,11 +18,12 @@ import { awardXp, handleXp } from './xp.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
+const client = new Client({ partials: [Partials.Message, Partials.Channel], intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
 const channels = {};
+const audit = createAuditLogger(client, config);
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
-  await channels[kind].send(announcement(kind, url, config));
+  await channels[kind].send(announcement(kind, url, { ...config, role: config.role || state.notificationRoles?.[config.guild] || null }));
   console.log(`Aviso ${kind} enviado para o canal ${config.channels[kind]}.`);
 }
 const monitor = new Monitor({ state, username: config.username, persist: s => saveState(config.stateFile, s), notify });
@@ -57,7 +60,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /rank, /top, /clear, /backup e /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /rank, /top, /clear, /backup, /bckup, /notifyon e /notifyoff registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
@@ -88,19 +91,24 @@ client.once(Events.ClientReady, async () => {
   }
 });
 client.on(Events.GuildMemberAdd, async member => {
-  if (member.guild.id !== config.guild || !channels.welcome) return;
+  if (member.guild.id !== config.guild) return;
+  void audit.member(member, true).catch(error => report('Log de entrada', error));
+  if (!channels.welcome) return;
   try {
     await channels.welcome.send(memberMessage(member, true));
   } catch (error) { report('Boas-vindas', error); }
 });
 client.on(Events.GuildMemberRemove, async member => {
-  if (member.guild.id !== config.guild || !channels.leave) return;
+  if (member.guild.id !== config.guild) return;
+  void audit.member(member, false).catch(error => report('Log de saída', error));
+  if (!channels.leave) return;
   try {
     await channels.leave.send(memberMessage(member, false));
   } catch (error) { report('Mensagem de saída', error); }
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await handleNotifications(interaction, config, state, s => saveState(config.stateFile, s), audit)) return;
     if (await handleClear(interaction, config)) return;
     if (await handleBackup(interaction, config)) return;
     if (await handleDivulgar(interaction, config)) return;
@@ -115,8 +123,18 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 client.on(Events.MessageCreate, message => {
+  void audit.message(message, 'create').catch(error => report('Log de mensagem', error));
   void awardXp(message, config, state, s => saveState(config.stateFile, s))
     .catch(error => report('Guardar XP', error));
+});
+client.on(Events.MessageUpdate, (before, after) => {
+  void audit.message(after, 'edit', before).catch(error => report('Log de edição', error));
+});
+client.on(Events.MessageDelete, message => {
+  void audit.message(message, 'delete').catch(error => report('Log de eliminação', error));
+});
+client.on(Events.MessageBulkDelete, (messages, channel) => {
+  void audit.bulkDelete(messages, channel).catch(error => report('Log de limpeza', error));
 });
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {

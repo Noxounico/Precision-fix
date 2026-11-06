@@ -7,6 +7,10 @@ const defaults = Object.freeze({
   LIVE_CHANNEL_ID: '1560785984482836621',
   VIDEO_CHANNEL_ID: '1564086426969182329',
   TIKTOK_USERNAME: 'noxdu7',
+  LOG_LEAVE_CHANNEL_ID: '1568353700068597770',
+  LOG_MESSAGES_CHANNEL_ID: '1568354167263600811',
+  LOG_NOTIFY_CHANNEL_ID: '1568354944740761834',
+  LOG_JOIN_CHANNEL_ID: '1568355243824254976',
   TICKET_SUPPORT_ROLE_IDS: '1562143820605300801,1562143823193309202',
   TICKET_TRANSCRIPT_CHANNEL_ID: '1562143825298980895',
   INSTAGRAM_USERNAME: '_.rafaeldu7',
@@ -19,7 +23,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());
   if (missing.length) throw new Error(`Falta configurar: ${missing.join(', ')}`);
-  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID']) {
+  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID', 'LOG_LEAVE_CHANNEL_ID', 'LOG_MESSAGES_CHANNEL_ID', 'LOG_NOTIFY_CHANNEL_ID', 'LOG_JOIN_CHANNEL_ID']) {
     if (env[key] && !/^\d{17,20}$/.test(env[key])) throw new Error(`${key}: ID Discord inválido`);
   }
   if (env.DIVULGAR_IMAGE_URL) {
@@ -44,6 +48,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   return {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
+    logChannels: { leave: env.LOG_LEAVE_CHANNEL_ID, messages: env.LOG_MESSAGES_CHANNEL_ID, notify: env.LOG_NOTIFY_CHANNEL_ID, join: env.LOG_JOIN_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
     // Owner-reported missed post, verified against the public TikTok redirect.
     videoRecovery: username === 'noxdu7' ? '7700986106065489185' : null,

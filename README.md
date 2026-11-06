@@ -135,3 +135,20 @@ O formato é **NDJSON comprimido com gzip** (`.ndjson.gz`): descomprima com 7-Zi
 **Limites:** é uma exportação, não um clone integral nem um sistema de restauro. A API não permite recriar IDs, transferir membros, recuperar mensagens apagadas ou copiar propriedade, subscrições e boosts. Não inclui DMs, tokens, segredos de webhooks, códigos de convite, gravações de voz nem auditoria. Imagens e anexos são URLs e **não cópias dos ficheiros binários**; podem expirar. Não existe comando de restauro automático nesta versão. Guarde os ficheiros num local privado.
 
 Para maior cobertura, o bot precisa de ver os canais, ler histórico e ter **Server Members Intent** e **Message Content Intent** ativos. Banimentos, AutoMod, metadados de webhooks e tópicos privados requerem as permissões específicas correspondentes (Banir membros, Gerir servidor, Gerir webhooks e Gerir tópicos). Permissões ausentes são registadas no relatório, sem as contornar. Testes locais verificam a paginação, exclusão de segredos, exportação parcial, divisão de ficheiros e controlos de acesso; o backup ainda precisa de validação com o servidor real.
+
+## Logs de atividade
+
+- Entradas: `1568355243824254976` (`LOG_JOIN_CHANNEL_ID`).
+- Saídas: `1568353700068597770` (`LOG_LEAVE_CHANNEL_ID`).
+- Mensagens: `1568354167263600811` (`LOG_MESSAGES_CHANNEL_ID`).
+- `/notifyon`: `1568354944740761834` (`LOG_NOTIFY_CHANNEL_ID`).
+
+Os logs são cartões brancos com hora e IDs. Mensagens enviadas, editadas e apagadas são registadas como metadados (autor, canal, ID e link quando aplicável), sem copiar o conteúdo de conversas/tickets para o log geral. Eliminações em massa têm contagem própria. Bots, webhooks, os próprios canais de logs, mensagens privadas e eventos de outros servidores são ignorados. Mensagens fora da cache podem aparecer sem autor disponível. Os registos começam depois do deploy; não recuperam eventos antigos nem identificam quem executou uma eliminação.
+
+O bot precisa de Ver canal, Enviar mensagens e Inserir links em cada canal de logs. Uma falha num log é registada na consola e não impede as restantes funções do bot.
+
+### /notifyon e /notifyoff
+
+`/notifyon` atribui ao próprio membro um cargo para receber os avisos de lives e vídeos. `/notifyoff` remove esse cargo do próprio membro. Ambos respondem em privado e registam sucesso/falha no canal `1568354944740761834`. Não ligam/desligam o monitor global.
+
+Se `NOTIFICATION_ROLE_ID` estiver configurado, usa esse cargo. Caso contrário, o bot cria um cargo **Notificações** mencionável, sem permissões próprias, e guarda o ID no estado para o reutilizar nos avisos e após reiniciar. O bot precisa de **Gerir cargos** e o seu cargo deve ficar acima do cargo de notificações. Cargos geridos, @everyone, cargos com permissões próprias ou não mencionáveis são rejeitados, para não transformar uma adesão em atribuição de privilégios. Não é preciso ser administrador para aderir; o comando só altera o próprio membro. O cargo permite o ping, mas as preferências de notificações pessoais do Discord continuam a aplicar-se.
