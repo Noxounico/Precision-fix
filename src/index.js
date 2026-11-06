@@ -1,4 +1,5 @@
 import { VoiceXp } from './voice-xp.js';
+import { handleLoja } from './loja.js';
 import { recoverXpFromRoles } from './xp-recovery.js';
 import { restrictMessage } from './command-access.js';
 import { handleSetup } from './level-announcements.js';
@@ -120,6 +121,7 @@ client.on(Events.GuildMemberAdd, async member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await handleLoja(interaction, config)) return;
     if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleRegras(interaction, config)) return;
     if (await handleClear(interaction, config)) return;
