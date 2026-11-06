@@ -87,6 +87,7 @@ O estado guarda a URL e o hash do banner aplicado para evitar alterações repet
 
 ## Todos os comandos
 
+- `/regras`: mostra publicamente as sete regras do servidor, sem a regra dos tickets. Disponível a todos os membros. Reinicie o bot após o deploy para registar o comando.
 - `/divulgar`: publica TikTok, Instagram e foto. Requer **Gerir servidor**.
 - `/painel`: publica um painel com **Abrir ticket** no canal atual. Requer **Gerir servidor**. Qualquer membro com acesso ao painel pode clicar para abrir o seu ticket privado.
 - `/rank [usuario]`: mostra nível, XP e posição. Disponível aos membros.
@@ -135,6 +136,16 @@ O formato é **NDJSON comprimido com gzip** (`.ndjson.gz`): descomprima com 7-Zi
 **Limites:** é uma exportação, não um clone integral nem um sistema de restauro. A API não permite recriar IDs, transferir membros, recuperar mensagens apagadas ou copiar propriedade, subscrições e boosts. Não inclui DMs, tokens, segredos de webhooks, códigos de convite, gravações de voz nem auditoria. Imagens e anexos são URLs e **não cópias dos ficheiros binários**; podem expirar. Não existe comando de restauro automático nesta versão. Guarde os ficheiros num local privado.
 
 Para maior cobertura, o bot precisa de ver os canais, ler histórico e ter **Server Members Intent** e **Message Content Intent** ativos. Banimentos, AutoMod, metadados de webhooks e tópicos privados requerem as permissões específicas correspondentes (Banir membros, Gerir servidor, Gerir webhooks e Gerir tópicos). Permissões ausentes são registadas no relatório, sem as contornar. Testes locais verificam a paginação, exclusão de segredos, exportação parcial, divisão de ficheiros e controlos de acesso; o backup ainda precisa de validação com o servidor real.
+
+### Cargo de entrada e canal de banimento
+
+Novos membros recebem o cargo `1560785907509108787` (configurável em `JOIN_ROLE_ID`). O bot precisa de **Gerir cargos** e de um cargo acima deste.
+
+Um administrador pode executar `/ban` num canal de texto para publicar o aviso e ativar o banimento automático de quem escrever nesse canal ou nas suas threads. Bots e webhooks são ignorados. O bot precisa de **Banir membros**, **Ver canal** e **Enviar mensagens**; a hierarquia do Discord aplica-se. A configuração fica guardada em `STATE_FILE`; mantém esse ficheiro num volume persistente. Mensagens antigas não causam banimento.
+
+### Níveis e XP por call
+
+Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` para consultar XP. Mensagens dão 15 XP com cooldown de 60 segundos. Calls dão 10 XP por minuto com pelo menos dois humanos; bots, canal AFK e membros ensurdecidos não ganham XP. Aprendiz II dá 2× e Mestre II dá 3×. Os nove cargos são acumulados; o bot precisa de Gerir cargos e estar acima deles. Configure as permissões dos cargos no Discord conforme o quadro. XP mantém-se no STATE_FILE; tempo parcial de call reinicia quando o bot reinicia.
 
 ## Logs de atividade
 

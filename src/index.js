@@ -1,10 +1,17 @@
-import { Client, GatewayIntentBits, Events, Partials, PermissionFlagsBits } from 'discord.js';
 import { handleNotifications } from './notifications.js';
 import { createAuditLogger } from './audit.js';
+import { VoiceXp } from './voice-xp.js';
+import { handleLoja } from './loja.js';
+import { recoverXpFromRoles } from './xp-recovery.js';
+import { restrictMessage } from './command-access.js';
+import { handleSetup } from './level-announcements.js';
+import { startMemberCounter } from './member-counter.js';
+import { assignJoinRole, handleBan, enforceBanChannel } from './auto-moderation.js';
+import { handleRegras } from './regras.js';
+import { Client, GatewayIntentBits, Events, Partials, PermissionFlagsBits } from 'discord.js';
 import { announcement } from './social-cards.js';
 import { handleClear } from './moderation.js';
 import { handleBackup } from './backup.js';
-import { memberMessage } from './member-messages.js';
 import { syncTicketAccess } from './transcript.js';
 import { applyBanner } from './profile.js';
 import { readConfig } from './config.js';
@@ -18,9 +25,16 @@ import { awardXp, handleXp } from './xp.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
-const client = new Client({ partials: [Partials.Message, Partials.Channel], intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
+const client = new Client({ partials: [Partials.Message, Partials.Channel], intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
 const channels = {};
 const audit = createAuditLogger(client, config);
+const voiceXp = new VoiceXp(config, state, s => saveState(config.stateFile, s));
+let voiceTimer;
+let stopMemberCounter;
+let voiceBusy = false;
+client.on(Events.VoiceStateUpdate, (oldVoice, newVoice) => {
+  voiceXp.refresh(newVoice.guild);
+});
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
   await channels[kind].send(announcement(kind, url, { ...config, role: config.role || state.notificationRoles?.[config.guild] || null }));
@@ -60,13 +74,26 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /rank, /top, /clear, /backup, /bckup, /notifyon e /notifyoff registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup, /bckup, /notifyon e /notifyoff registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
-    void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os dois cargos de suporte.'))
+    try {
+      const restored = await recoverXpFromRoles(guild, state, s => saveState(config.stateFile, s));
+      console.log(`Proteção de XP: ${restored} membros recuperados pelo cargo. Estado: ${config.stateFile}. Preserve este ficheiro num volume persistente.`);
+    } catch (error) { report('Recuperação de XP pelos cargos', error); }
+    stopMemberCounter = startMemberCounter(guild, report);
+    voiceXp.refresh(guild);
+    voiceTimer = setInterval(async () => {
+      if (voiceBusy) return;
+      voiceBusy = true;
+      try { await voiceXp.tick(guild); } catch (error) { report('XP de call e cargos', error); }
+      finally { voiceBusy = false; }
+    }, 60000);
+    void syncTicketAccess(guild, config).then(() => console.log('Permissões dos tickets atualizadas para os cargos de suporte configurados.'))
       .catch(error => report('Atualizar permissões dos tickets', error));
     const me = guild.members.me;
     for (const [kind, id] of Object.entries(config.channels)) {
+      if (kind === 'welcome' || kind === 'leave') continue;
       const channel = await guild.channels.fetch(id);
       const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages];
       needed.push(PermissionFlagsBits.EmbedLinks);
@@ -93,22 +120,19 @@ client.once(Events.ClientReady, async () => {
 client.on(Events.GuildMemberAdd, async member => {
   if (member.guild.id !== config.guild) return;
   void audit.member(member, true).catch(error => report('Log de entrada', error));
-  if (!channels.welcome) return;
-  try {
-    await channels.welcome.send(memberMessage(member, true));
-  } catch (error) { report('Boas-vindas', error); }
+  try { await assignJoinRole(member, config); }
+  catch (error) { report('Atribuir cargo de entrada (verifique Gerir cargos e a hierarquia)', error); }
 });
-client.on(Events.GuildMemberRemove, async member => {
+client.on(Events.GuildMemberRemove, member => {
   if (member.guild.id !== config.guild) return;
   void audit.member(member, false).catch(error => report('Log de saída', error));
-  if (!channels.leave) return;
-  try {
-    await channels.leave.send(memberMessage(member, false));
-  } catch (error) { report('Mensagem de saída', error); }
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (await handleNotifications(interaction, config, state, s => saveState(config.stateFile, s), audit)) return;
+    if (await handleLoja(interaction, config)) return;
+    if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
+    if (await handleRegras(interaction, config)) return;
     if (await handleClear(interaction, config)) return;
     if (await handleBackup(interaction, config)) return;
     if (await handleDivulgar(interaction, config)) return;
@@ -122,8 +146,16 @@ client.on(Events.InteractionCreate, async interaction => {
     else if (!interaction.replied) await interaction.reply({ content, flags: 64 }).catch(() => {});
   }
 });
-client.on(Events.MessageCreate, message => {
+client.on(Events.MessageCreate, async message => {
   void audit.message(message, 'create').catch(error => report('Log de mensagem', error));
+  try {
+    if (await enforceBanChannel(message, config, state)) return;
+    if (await restrictMessage(message, config, state, s => saveState(config.stateFile, s))) return;
+    if (await handleSetup(message, config)) return;
+  } catch (error) {
+    report('Banimento automático ou eliminação da mensagem (verifique Banir membros, Gerir mensagens e a hierarquia de cargos)', error);
+    return;
+  }
   void awardXp(message, config, state, s => saveState(config.stateFile, s))
     .catch(error => report('Guardar XP', error));
 });
@@ -139,6 +171,8 @@ client.on(Events.MessageBulkDelete, (messages, channel) => {
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
   stopping = true;
+  clearInterval(voiceTimer);
+  stopMemberCounter?.();
   for (const timer of timers) clearTimeout(timer);
   client.destroy();
 });

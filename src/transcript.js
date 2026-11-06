@@ -1,6 +1,7 @@
 import { deletionDeadline, scheduleTicketDeletion } from './ticket-cleanup.js';
+import { shopRoles, isShopTicket } from './shop-access.js';
 import { transcriptCard } from './ticket-ui.js';
-import { AttachmentBuilder, PermissionFlagsBits as P } from 'discord.js';
+import { AttachmentBuilder, ChannelType, PermissionFlagsBits as P } from 'discord.js';
 
 export function supportOverwrites(guild, botId, roleIds, owner, closed = false) {
   const list = [
@@ -19,11 +20,11 @@ export async function syncTicketAccess(guild, config) {
   }
   const channels = await guild.channels.fetch();
   for (const channel of channels.values()) {
-    const match = channel?.topic?.match(/^precision-ticket(-closed)?:(\d+)(?::\d+)?$/);
+    const match = channel?.topic?.match(/^precision-(?:ticket|shop)(-closed)?:(\d+)(?::\d+)?$/);
     if (!match) continue;
     const deadline = deletionDeadline(channel.topic);
     if (deadline) scheduleTicketDeletion(channel, deadline);
-    await channel.permissionOverwrites.set(supportOverwrites(guild, me.id, config.ticketSupportRoles, match[2], !!match[1]));
+    await channel.permissionOverwrites.set(supportOverwrites(guild, me.id, isShopTicket(channel) ? shopRoles : config.ticketSupportRoles, match[2], !!match[1]));
   }
 }
 export async function transcriptParts(channel, ownerId, closedBy) {
@@ -54,12 +55,21 @@ export async function transcriptParts(channel, ownerId, closedBy) {
 }
 export async function deliverTranscript(interaction, config, ownerId) {
   if (!config.messageContent) throw Error('Ative Message Content Intent para gerar transcrições completas');
-  const archive = await interaction.guild.channels.fetch(config.ticketTranscriptChannel);
+  const shop = isShopTicket(interaction.channel);
+  let archive;
+  if (shop) {
+    const channels = await interaction.guild.channels.fetch();
+    archive = channels.find(channel => channel?.type === ChannelType.GuildText && channel.topic === 'precision-shop-archive');
+    if (!archive) {
+      const me = interaction.guild.members.me || await interaction.guild.members.fetchMe();
+      archive = await interaction.guild.channels.create({ name: 'arquivo-compras', type: ChannelType.GuildText, topic: 'precision-shop-archive', permissionOverwrites: supportOverwrites(interaction.guild, me.id, shopRoles) });
+    }
+  } else archive = await interaction.guild.channels.fetch(config.ticketTranscriptChannel);
   if (!archive?.isTextBased() || archive.isThread() || archive.id === interaction.channel.id) throw Error('Canal de transcrições inválido');
   const me = interaction.guild.members.me || await interaction.guild.members.fetchMe();
   if (!interaction.channel.permissionsFor(me)?.has([P.ViewChannel, P.ReadMessageHistory])) throw Error('Falta Ver canal ou Ler histórico no ticket');
   // Transcripts are visible only to support roles, bot and Discord administrators.
-  await archive.permissionOverwrites.set(supportOverwrites(interaction.guild, me.id, config.ticketSupportRoles));
+  await archive.permissionOverwrites.set(supportOverwrites(interaction.guild, me.id, shop ? shopRoles : config.ticketSupportRoles));
   const parts = await transcriptParts(interaction.channel, ownerId, interaction.user.id);
   const files = () => parts.map((buffer, index) => new AttachmentBuilder(buffer, { name: `ticket-${interaction.channel.id}-${index + 1}.txt` }));
   const summary = transcriptCard(interaction.guild, interaction.channel.id, ownerId, interaction.user.id);

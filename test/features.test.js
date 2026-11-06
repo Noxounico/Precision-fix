@@ -27,19 +27,20 @@ test('XP: cooldown por membro, bots/webhooks/outro servidor ignorados e persist�
   assert.equal(await awardXp({ ...msg, createdTimestamp: 160001 }, config, restored, async () => assert.fail()), false);
   assert.deepEqual(levelInfo(100), { level: 1, next: 400 });
 });
-test('/rank e /top leem o XP real, ordenam e não enviam pings', async () => {
+test('/xp ver lê XP real e comandos antigos são ignorados', async () => {
   const state = { xp: { '123': { a: { xp: 300 }, b: { xp: 1200 } } } };
   assert.deepEqual(leaderboard(state, '123').map(([id]) => id), ['b', 'a']);
   const replies = [];
-  const interaction = { isChatInputCommand: () => true, commandName: 'rank', guildId: '123', user: { id: 'a' }, options: { getUser: () => null }, reply: async data => replies.push(data) };
+  const interaction = { isChatInputCommand: () => true, commandName: 'xp', guildId: '123', user: { id: 'a' }, options: { getSubcommand: () => 'ver' }, reply: async data => replies.push(data) };
   await handleXp(interaction, config, state);
   const rank = replies[0].embeds[0].toJSON();
   assert.equal(rank.fields[0].value, '1');
   assert.equal(rank.fields[2].value, '#2');
   interaction.commandName = 'top';
-  await handleXp(interaction, config, state);
-  assert.match(replies[1].embeds[0].toJSON().description, /^\*\*1\.\*\* <@b>/);
-  assert.deepEqual(replies[1].allowedMentions.parse, []);
+  assert.equal(await handleXp(interaction, config, state), false);
+  interaction.commandName = 'rank';
+  assert.equal(await handleXp(interaction, config, state), false);
+  assert.deepEqual(replies[0].allowedMentions.parse, []);
 });
 function ticketInteraction(overrides = {}) {
   const calls = { replies: [], edits: [], creates: [], sends: [], overwrites: [], channelEdits: [] };
@@ -89,9 +90,17 @@ test('ticket: autor e administrador sem cargo de suporte não podem fechar', asy
   for (const memberPermissions of [perms(), perms(P.ManageGuild, P.Administrator)]) {
     const denied = ticketInteraction({ customId: 'tickets:close', memberPermissions });
     await handleTickets(denied, { ...config, ticketSupportRoles: ['staff'] });
-    assert.match(denied.calls.replies[0].content, /Só os dois cargos/);
+    assert.match(denied.calls.replies[0].content, /Só a equipa autorizada/);
     assert.equal(denied.calls.overwrites.length, 0);
   }
+});
+test('compra só permite o cargo da loja, comprador e bot', async () => {
+  const i = ticketInteraction({ customId: 'shop:open' });
+  i.guild.roles = { fetch: async id => ({ id, managed: false }) };
+  await handleTickets(i, { ...config, ticketSupportRoles: ['other-staff'] });
+  const channel = i.calls.creates[0];
+  assert.equal(channel.topic, 'precision-shop:456');
+  assert.deepEqual(channel.permissionOverwrites.map(rule => rule.id), ['123', 'bot', '1567315868344524833', '456']);
 });
 test('/painel requer Gerir servidor; membro comum não publica painel', async () => {
   const denied = ticketInteraction({ isChatInputCommand: () => true, commandName: 'painel' });
@@ -110,7 +119,7 @@ test('regista todos os comandos e apaga registos antigos e duplicados globais de
   assert.deepEqual(deletes, ['2']);
   assert.deepEqual(globalDeletes, ['global']);
   assert.deepEqual(edits, [['1', 'painel']]);
-  assert.deepEqual(creates, ['divulgar', 'rank', 'top', 'clear', 'backup', 'bckup', 'notifyon', 'notifyoff']);
+  assert.deepEqual(creates, ['loja', 'ban', 'divulgar', 'regras', 'xp', 'clear', 'backup', 'bckup', 'notifyon', 'notifyoff']);
 });
 
 test('se o registo dos comandos atuais falhar, não remove os comandos antigos', async () => {

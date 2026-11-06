@@ -1,6 +1,6 @@
 const pending = new Map();
 export function deletionDeadline(topic) {
-  const match = topic?.match(/^precision-ticket-closed:\d+:(\d+)$/);
+  const match = topic?.match(/^precision-(?:ticket|shop)-closed:\d+:(\d+)$/);
   const deadline = match && Number(match[1]);
   return Number.isSafeInteger(deadline) && deadline > 0 ? deadline : null;
 }

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 // Public server/profile settings supplied by the owner. Never store tokens here.
 const defaults = Object.freeze({
+  JOIN_ROLE_ID: '1560785907509108787',
   GUILD_ID: '1560784472083800298',
   WELCOME_CHANNEL_ID: '1560785968024522984',
   LEAVE_CHANNEL_ID: '1560785974173237369',
@@ -11,7 +12,7 @@ const defaults = Object.freeze({
   LOG_MESSAGES_CHANNEL_ID: '1568354167263600811',
   LOG_NOTIFY_CHANNEL_ID: '1568354944740761834',
   LOG_JOIN_CHANNEL_ID: '1568355243824254976',
-  TICKET_SUPPORT_ROLE_IDS: '1562143820605300801,1562143823193309202',
+  TICKET_SUPPORT_ROLE_IDS: '1567843660224012298,1563910348459737178,1567833576760680548,1567833641055424573,1567837093223469137,1567844705646018611',
   TICKET_TRANSCRIPT_CHANNEL_ID: '1562143825298980895',
   INSTAGRAM_USERNAME: '_.rafaeldu7',
   BOT_BANNER_URL: 'https://media.discordapp.net/attachments/1560786047456120832/1562020832543248465/814fb6b110e20c2d902c71f6dda0caf3.gif?ex=6adfb903&is=6ade6783&hm=97bb6f06f2388c1ebbba6f1100fd4ab7d39b80444e5c1e5dd215338916bdc697&=&width=501&height=218',
@@ -23,7 +24,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());
   if (missing.length) throw new Error(`Falta configurar: ${missing.join(', ')}`);
-  for (const key of [...required.filter(k => k.endsWith('_ID')), 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID', 'LOG_LEAVE_CHANNEL_ID', 'LOG_MESSAGES_CHANNEL_ID', 'LOG_NOTIFY_CHANNEL_ID', 'LOG_JOIN_CHANNEL_ID']) {
+  for (const key of [...required.filter(k => k.endsWith('_ID')), 'JOIN_ROLE_ID', 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID', 'LOG_LEAVE_CHANNEL_ID', 'LOG_MESSAGES_CHANNEL_ID', 'LOG_NOTIFY_CHANNEL_ID', 'LOG_JOIN_CHANNEL_ID']) {
     if (env[key] && !/^\d{17,20}$/.test(env[key])) throw new Error(`${key}: ID Discord inválido`);
   }
   if (env.DIVULGAR_IMAGE_URL) {
@@ -36,6 +37,8 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     try { banner = new URL(env.BOT_BANNER_URL); } catch { throw new Error('BOT_BANNER_URL inválido'); }
     if (banner.protocol !== 'https:') throw new Error('BOT_BANNER_URL deve usar HTTPS');
   }
+  // Migrate the previous deployment setting as well as the built-in defaults.
+  if (env.TICKET_SUPPORT_ROLE_IDS.replace(/\s/g, '') === '1562143820605300801,1562143823193309202') env.TICKET_SUPPORT_ROLE_IDS = defaults.TICKET_SUPPORT_ROLE_IDS;
   const ticketSupportRoles = [...new Set(env.TICKET_SUPPORT_ROLE_IDS.split(',').map(id => id.trim()))];
   if (!ticketSupportRoles.length || ticketSupportRoles.some(id => !/^\d{17,20}$/.test(id))) throw new Error('TICKET_SUPPORT_ROLE_IDS inválido');
   const username = env.TIKTOK_USERNAME.replace(/^@/, '');
@@ -48,6 +51,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   return {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
+    joinRole: env.JOIN_ROLE_ID,
     logChannels: { leave: env.LOG_LEAVE_CHANNEL_ID, messages: env.LOG_MESSAGES_CHANNEL_ID, notify: env.LOG_NOTIFY_CHANNEL_ID, join: env.LOG_JOIN_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
     // Owner-reported missed post, verified against the public TikTok redirect.
