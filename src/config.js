@@ -11,8 +11,6 @@ const defaults = Object.freeze({
   VIDEO_CHANNEL_ID: '1564086426969182329',
   TIKTOK_USERNAME: 'noxdu7',
   LOG_LEAVE_CHANNEL_ID: '1568353700068597770',
-  LOG_MESSAGES_CHANNEL_ID: '1568354167263600811',
-  LOG_NOTIFY_CHANNEL_ID: '1568354944740761834',
   LOG_JOIN_CHANNEL_ID: '1568355243824254976',
   TICKET_SUPPORT_ROLE_IDS: '1567843660224012298,1563910348459737178,1567833576760680548,1567833641055424573,1567837093223469137,1567844705646018611',
   TICKET_TRANSCRIPT_CHANNEL_ID: '1562143825298980895',
@@ -26,7 +24,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
   if (requireToken) required.push('DISCORD_TOKEN');
   const missing = required.filter(key => !env[key]?.trim());
   if (missing.length) throw new Error(`Falta configurar: ${missing.join(', ')}`);
-  for (const key of [...required.filter(k => k.endsWith('_ID')), 'JOIN_ROLE_ID', 'LIVE_NOTIFICATION_ROLE_ID', 'VIDEO_NOTIFICATION_ROLE_ID', 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID', 'LOG_LEAVE_CHANNEL_ID', 'LOG_MESSAGES_CHANNEL_ID', 'LOG_NOTIFY_CHANNEL_ID', 'LOG_JOIN_CHANNEL_ID']) {
+  for (const key of [...required.filter(k => k.endsWith('_ID')), 'JOIN_ROLE_ID', 'LIVE_NOTIFICATION_ROLE_ID', 'VIDEO_NOTIFICATION_ROLE_ID', 'NOTIFICATION_ROLE_ID', 'TICKET_TRANSCRIPT_CHANNEL_ID', 'LOG_LEAVE_CHANNEL_ID', 'LOG_JOIN_CHANNEL_ID']) {
     if (env[key] && !/^\d{17,20}$/.test(env[key])) throw new Error(`${key}: ID Discord inválido`);
   }
   if (env.DIVULGAR_IMAGE_URL) {
@@ -54,7 +52,7 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     token: env.DISCORD_TOKEN, guild: env.GUILD_ID, username,
     channels: { welcome: env.WELCOME_CHANNEL_ID, leave: env.LEAVE_CHANNEL_ID, live: env.LIVE_CHANNEL_ID, video: env.VIDEO_CHANNEL_ID },
     joinRole: env.JOIN_ROLE_ID,
-    logChannels: { leave: env.LOG_LEAVE_CHANNEL_ID, messages: env.LOG_MESSAGES_CHANNEL_ID, notify: env.LOG_NOTIFY_CHANNEL_ID, join: env.LOG_JOIN_CHANNEL_ID },
+    logChannels: { leave: env.LOG_LEAVE_CHANNEL_ID, join: env.LOG_JOIN_CHANNEL_ID },
     role: env.NOTIFICATION_ROLE_ID || null,
     notificationRoles: { live: env.LIVE_NOTIFICATION_ROLE_ID, video: env.VIDEO_NOTIFICATION_ROLE_ID },
     // Owner-reported missed post, verified against the public TikTok redirect.
