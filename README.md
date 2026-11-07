@@ -151,23 +151,15 @@ Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` pa
 
 - Entradas: `1568355243824254976` (`LOG_JOIN_CHANNEL_ID`).
 - Saídas: `1568353700068597770` (`LOG_LEAVE_CHANNEL_ID`).
-- Mensagens: `1568354167263600811` (`LOG_MESSAGES_CHANNEL_ID`).
-- `/notifyon`: `1568354944740761834` (`LOG_NOTIFY_CHANNEL_ID`).
-
-Os logs são cartões brancos com hora e IDs. Mensagens enviadas, editadas e apagadas são registadas com autor, canal, ID, texto e anexos; edições mostram o antes e o depois. Mantém o canal de logs reservado à equipa. Eliminações em massa têm contagem própria. Bots, webhooks, os próprios canais de logs, mensagens privadas e eventos de outros servidores são ignorados. Mensagens fora da cache podem aparecer sem autor disponível. Os registos começam depois do deploy; não recuperam eventos antigos nem identificam quem executou uma eliminação.
 
 O bot precisa de Ver canal, Enviar mensagens e Inserir links em cada canal de logs. Uma falha num log é registada na consola e não impede as restantes funções do bot.
 
-### /notifyon e /notifyoff
-
-`/notifyon` apresenta escolhas independentes de lives e vídeos. `/notifyoff` remove ambas as adesões do próprio membro. Novos membros recebem as escolhas por DM, quando possível. Consulta abaixo os cargos e requisitos de permissões. Estes comandos não desligam a monitorização global.
+Os comandos de adesão a notificações, os convites por DM à entrada e os logs de mensagens foram removidos. Ao atualizar e reiniciar o bot, os comandos antigos são eliminados do servidor e os registos globais deste bot são limpos. Os avisos automáticos de live/vídeo continuam a mencionar os respetivos cargos. Cargos já atribuídos e mensagens de logs antigas permanecem no servidor.
 
 ### Tickets, notificações e XP
 
 - `/painel` publica as opções **Abrir ticket** e **Parceria**. Volta a publicar o painel para apresentar o novo botão. As compras abertas pela loja usam `ticket-utilizador-compra`; parcerias usam `ticket-utilizador-parceria`.
 - Cada novo ticket tem **Assumir ticket** (só suporte) e **Fechar ticket** (só suporte). As compras também têm **Cancelar compra** para o comprador ou a equipa da loja; o cancelamento arquiva a transcrição antes de apagar o canal. A atribuição fica guardada no tópico e mantém-se após reinícios.
-- `/notifyon` apresenta botões independentes para lives e vídeos; clicar alterna a adesão. Novos membros recebem esta escolha por DM. Com DMs fechadas, podem usar `/notifyon`. `/notifyoff` remove ambas as adesões. As notificações mencionam apenas o cargo da respetiva modalidade.
-- Lives: `1568356044131012699`; vídeos: `1567842947238465608`. Os cargos devem estar abaixo do bot, sem permissões e mencionáveis. Podem ser substituídos por `LIVE_NOTIFICATION_ROLE_ID` e `VIDEO_NOTIFICATION_ROLE_ID`.
-- Os logs de mensagens incluem texto, antes/depois das edições e URLs dos anexos. Textos longos seguem completos em `.txt`. A eliminação em massa também regista os conteúdos disponíveis. O canal de logs deve estar reservado à equipa, pois inclui conteúdo de canais privados acessíveis ao bot. Mensagens de bots/webhooks e canais de logs são ignoradas. Mensagens apagadas que o bot não recebeu ou já não tem em cache mostram conteúdo indisponível; anexos são links e podem expirar. Ativa **Message Content Intent** no Developer Portal.
+- Lives: `1568356044131012699`; vídeos: `1567842947238465608`. Os cargos devem ser mencionáveis para receberem os avisos. A atribuição dos cargos é gerida no Discord. Podem ser substituídos por `LIVE_NOTIFICATION_ROLE_ID` e `VIDEO_NOTIFICATION_ROLE_ID`.
 - O quadro de XP mostra os níveis por ordem decrescente, de **Veterano III** até **Aprendiz I**. No arranque, o bot organiza os nove cargos nas posições de XP já existentes (III acima de II e I) e atualiza quadros de níveis seus nas últimas 100 mensagens do canal de níveis. Pode também publicar o quadro atualizado com `/xp mensagem`.
 - O XP continua a ser guardado em `STATE_FILE`. Adicionalmente, o bot cria o canal privado `xp-backup`, visível ao bot e administradores, e guarda uma cópia a cada minuto e ao desligar normalmente. Ao iniciar, recupera o maior XP entre a cópia e o ficheiro local, antes da recuperação mínima pelos cargos. Precisa de **Gerir canais**, **Ver canal**, **Ler histórico**, **Enviar mensagens** e **Anexar ficheiros**. Se a cópia estiver ilegível, não a substitui; regista o erro e mantém a gravação local. Conserva o volume persistente do alojamento: numa falha abrupta sem esse volume, a recuperação remota pode perder o último minuto. XP já perdido antes desta atualização só pode ser recuperado até ao mínimo dos cargos existentes.

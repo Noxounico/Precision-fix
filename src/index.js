@@ -1,7 +1,7 @@
 import { orderXpRoles, levelsEmbed } from './xp-levels.js';
 import { levelChannel } from './level-announcements.js';
 import { createXpCheckpoint } from './xp-checkpoint.js';
-import { handleNotifications, offerJoinNotifications, notificationRoleId } from './notifications.js';
+import { notificationRoleId } from './notifications.js';
 import { createAuditLogger } from './audit.js';
 import { VoiceXp } from './voice-xp.js';
 import { handleLoja } from './loja.js';
@@ -79,7 +79,7 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup, /bckup, /notifyon e /notifyoff registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup, /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     try {
@@ -137,7 +137,6 @@ client.once(Events.ClientReady, async () => {
 });
 client.on(Events.GuildMemberAdd, async member => {
   if (member.guild.id !== config.guild) return;
-  void offerJoinNotifications(member, config).catch(error => report('Escolha de notificações por DM (o membro pode usar /notifyon)', error));
   void audit.member(member, true).catch(error => report('Log de entrada', error));
   try { await assignJoinRole(member, config); }
   catch (error) { report('Atribuir cargo de entrada (verifique Gerir cargos e a hierarquia)', error); }
@@ -148,7 +147,6 @@ client.on(Events.GuildMemberRemove, member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
-    if (await handleNotifications(interaction, config, state, s => saveState(config.stateFile, s), audit)) return;
     if (await handleLoja(interaction, config)) return;
     if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleRegras(interaction, config)) return;
@@ -166,7 +164,6 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 client.on(Events.MessageCreate, async message => {
-  void audit.message(message, 'create').catch(error => report('Log de mensagem', error));
   try {
     if (await enforceBanChannel(message, config, state)) return;
     if (await restrictMessage(message, config, state, s => saveState(config.stateFile, s))) return;
@@ -177,15 +174,6 @@ client.on(Events.MessageCreate, async message => {
   }
   void awardXp(message, config, state, s => saveState(config.stateFile, s))
     .catch(error => report('Guardar XP', error));
-});
-client.on(Events.MessageUpdate, (before, after) => {
-  void audit.message(after, 'edit', before).catch(error => report('Log de edição', error));
-});
-client.on(Events.MessageDelete, message => {
-  void audit.message(message, 'delete').catch(error => report('Log de eliminação', error));
-});
-client.on(Events.MessageBulkDelete, (messages, channel) => {
-  void audit.bulkDelete(messages, channel).catch(error => report('Log de limpeza', error));
 });
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {

@@ -112,14 +112,14 @@ test('/painel requer Gerir servidor; membro comum não publica painel', async ()
 });
 test('regista todos os comandos e apaga registos antigos e duplicados globais deste bot', async () => {
   const edits = [], creates = [], deletes = [], globalDeletes = [];
-  const guild = { commands: { fetch: async () => new Collection([['1', { id: '1', name: 'painel', type: 1 }], ['2', { id: '2', name: 'outro', type: 1 }]]),
+  const guild = { commands: { fetch: async () => new Collection([['1', { id: '1', name: 'painel', type: 1 }], ['2', { id: '2', name: 'outro', type: 1 }], ['3', { id: '3', name: 'notifyon', type: 1 }], ['4', { id: '4', name: 'notifyoff', type: 1 }]]),
     edit: async (id, data) => edits.push([id, data.name]), create: async data => creates.push(data.name), delete: async id => deletes.push(id) } };
   const globals = { fetch: async () => new Collection([['global', { id: 'global', name: 'painel' }]]), delete: async id => globalDeletes.push(id) };
   await registerCommands(guild, globals);
-  assert.deepEqual(deletes, ['2']);
+  assert.deepEqual(deletes, ['2', '3', '4']);
   assert.deepEqual(globalDeletes, ['global']);
   assert.deepEqual(edits, [['1', 'painel']]);
-  assert.deepEqual(creates, ['loja', 'ban', 'divulgar', 'regras', 'xp', 'clear', 'backup', 'bckup', 'notifyon', 'notifyoff']);
+  assert.deepEqual(creates, ['loja', 'ban', 'divulgar', 'regras', 'xp', 'clear', 'backup', 'bckup']);
 });
 
 test('se o registo dos comandos atuais falhar, não remove os comandos antigos', async () => {
