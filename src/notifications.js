@@ -21,6 +21,14 @@ export async function offerJoinNotifications(member, config) {
   await member.send(notificationPicker(config.guild, member.id));
   return true;
 }
+class NotificationSetupError extends Error {}
+export function notificationErrorReason(error) {
+  if (error instanceof NotificationSetupError) return error.message;
+  if (Number(error.code) === 50013) return 'Faltam permissões. Dá Gerir cargos ao bot e coloca o cargo do bot acima dos cargos de live e vídeo.';
+  if (Number(error.code) === 10011) return 'O cargo de notificações já não existe. Confirma o ID configurado.';
+  if (Number(error.code) === 10007) return 'O membro já não está no servidor.';
+  return `Falha ao contactar o Discord (código: ${error.code || error.name || 'desconhecido'}). Consulta os logs do alojamento.`;
+}
 const busy = new Set();
 export async function handleNotifications(interaction, config, state, persist, audit) {
   const command = interaction.isChatInputCommand() && ['notifyon', 'notifyoff'].includes(interaction.commandName);
@@ -40,16 +48,20 @@ export async function handleNotifications(interaction, config, state, persist, a
     await interaction.deferReply({ flags: 64 });
     const guild = interaction.guild || await interaction.client.guilds.fetch(config.guild);
     const me = guild.members.me || await guild.members.fetchMe();
-    if (!me.permissions.has(P.ManageRoles)) throw Error('O bot precisa de Gerir cargos para alterar as notificações.');
+    if (!me.permissions.has(P.ManageRoles)) throw new NotificationSetupError('O bot precisa da permissão Gerir cargos para alterar as notificações.');
     const member = await guild.members.fetch(interaction.user.id);
     const kind = match ? match[3] : 'off';
     const kinds = kind === 'off' ? ['live', 'video'] : [kind];
     // Validate every role before making changes; never grant privileged roles.
     for (const type of kinds) {
       const role = await guild.roles.fetch(notificationRoleId(config, type));
-      if (!role || role.id === guild.id || role.managed || !role.editable || role.permissions.bitfield !== 0n || !role.mentionable) {
-        throw Error('Os cargos de notificações devem existir, ser mencionáveis, sem permissões e estar abaixo do bot.');
-      }
+      const label = `${type === 'live' ? 'Live' : 'Vídeo'} (${notificationRoleId(config, type)})`;
+      if (!role) throw new NotificationSetupError(`O cargo ${label} não existe neste servidor. Confirma o ID configurado.`);
+      if (role.id === guild.id || role.managed) throw new NotificationSetupError(`O cargo ${label} é gerido por uma integração ou é @everyone. Usa um cargo normal.`);
+      if (!role.editable) throw new NotificationSetupError(`Coloca o cargo do bot acima do cargo ${label} na lista de cargos do servidor.`);
+      if (role.permissions.bitfield !== 0n) throw new NotificationSetupError(`O cargo ${label} tem permissões próprias. Usa um cargo exclusivo para notificações, sem permissões.`);
+      // Opt-out must also work when the role is no longer mentionable.
+      if (kind !== 'off' && !role.mentionable) await role.setMentionable(true, 'Permitir os avisos pedidos pelos membros');
     }
     let description;
     if (kind === 'off') {
@@ -68,8 +80,11 @@ export async function handleNotifications(interaction, config, state, persist, a
     await interaction.editReply({ content: `🔔 ${description}`, allowedMentions: { parse: [] } });
     await audit.notifyOn(interaction.user, description, kind === 'off' ? 'notifyoff' : 'notifyon').catch(error => console.error(`Log de notificações falhou (código: ${error.code || error.name}).`));
   } catch (error) {
-    await interaction.editReply({ content: `Não consegui alterar as notificações. ${error.code ? `Discord: código ${error.code}. Verifica Gerir cargos e a posição do cargo do bot.` : error.message}`, allowedMentions: { parse: [] } });
-    await audit.notifyOn(interaction.user, `Falha ao alterar notificações (código: ${error.code || error.name}).`, 'notifyon').catch(() => {});
+    const reason = notificationErrorReason(error);
+    const commandName = command ? interaction.commandName : match[3] === 'off' ? 'notifyoff' : 'notifyon';
+    await interaction.editReply({ content: `Não consegui alterar as notificações. ${reason}`, allowedMentions: { parse: [] } });
+    await audit.notifyOn(interaction.user, `Falha ao alterar notificações: ${reason}`, commandName).catch(() => {});
+    console.error(`Notificações: ${error.code || error.name || 'desconhecido'}; ${reason}`);
   } finally { busy.delete(key); }
   return true;
 }

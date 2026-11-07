@@ -29,8 +29,8 @@ test('DM de entrada funciona e bot/outro membro não ganha cargos',async()=>{
  button(f,'live');f.interaction.guildId=null;f.interaction.guild=null;f.interaction.client={guilds:{fetch:async()=>f.guild}};await run(f);assert.equal(f.added.length,1);
  f.interaction.user.id='other';await run(f);assert.equal(f.added.length,1);assert.match(f.replies.at(-1).content,/pertence/);
 });
-test('recusa cargos privilegiados, não mencionáveis, geridos ou acima do bot',async()=>{
- for(const patch of [{permissions:new PermissionsBitField(P.Administrator)},{mentionable:false},{managed:true},{editable:false}]) {
+test('recusa cargos privilegiados, geridos ou acima do bot',async()=>{
+ for(const patch of [{permissions:new PermissionsBitField(P.Administrator)},{managed:true},{editable:false}]) {
   const f=setup();Object.assign(f.role,patch);button(f,'live');await run(f);assert.equal(f.added.length,0);assert.match(f.replies[0].content,/Não consegui/);
  }
 });
@@ -38,4 +38,16 @@ test('cliques concorrentes não alternam a mesma preferência duas vezes',async(
  const f=setup();button(f,'live');let release;f.interaction.guild.members.fetch=()=>new Promise(r=>release=r);
  const first=run(f);await new Promise(r=>setImmediate(r));await run(f);
  release({roles:{cache:f.cache,add:async id=>f.added.push(id)}});await first;assert.equal(f.added.length,1);
+});
+
+test('cargo não mencionável é corrigido; falhas de configuração aparecem no log com motivo',async()=>{
+ const f=setup();f.role.mentionable=false;let enabled=0;f.role.setMentionable=async value=>{assert.equal(value,true);enabled++;};
+ button(f,'live');await run(f);assert.equal(enabled,1);assert.deepEqual(f.added,[defaultNotificationRoles.live]);
+ const g=setup();g.role.editable=false;button(g,'video');await run(g);
+ assert.match(g.logs[0][1],/Coloca o cargo do bot acima/);assert.match(g.logs[0][1],new RegExp(defaultNotificationRoles.video));
+ const h=setup();button(h,'live');h.guild.members.fetch=async()=>{throw Object.assign(new Error('private technical text'),{code:50013});};await run(h);
+ assert.match(h.logs[0][1],/Gerir cargos/);assert(!h.logs[0][1].includes('private technical text'));
+});
+test('notifyoff retira cargos mesmo que deixem de ser mencionáveis',async()=>{
+ const f=setup();f.role.mentionable=false;f.interaction.commandName='notifyoff';await run(f);assert.equal(f.removed.length,1);
 });
