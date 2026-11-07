@@ -93,3 +93,17 @@ test('sem Ler histórico não produz uma transcrição vazia nem fecha o ticket'
   await assert.rejects(handleTickets(interaction, config), /Ler histórico/);
   assert.equal(calls.archive.length, 0); assert.equal(calls.closes.length, 0);
 });
+
+test('comprador cancela compra, arquiva transcrição e utilizador alheio é recusado', async () => {
+ const {calls,interaction}=fixture();
+ interaction.channel.topic='precision-shop:456:claim:789';interaction.customId='tickets:cancel';interaction.user.id='456';
+ const archive={id:'archive',type:0,topic:'precision-shop-archive',isTextBased:()=>true,isThread:()=>false,permissionOverwrites:{set:async()=>{}},send:async data=>calls.archive.push(data)};
+ interaction.guild.channels.fetch=async()=>new Collection([['archive',archive]]);
+ interaction.guild.members.fetch=async()=>({roles:{cache:new Collection()}});
+ await handleTickets(interaction,config);
+ assert.equal(calls.archive.length,1);assert.match(calls.closes[0].topic,/^precision-shop-closed:456:/);
+ const other=fixture();other.interaction.customId='tickets:cancel';other.interaction.channel.topic='precision-shop:456';
+ other.interaction.guild.members.fetch=async()=>({roles:{cache:new Collection()}});
+ let denied;other.interaction.reply=async d=>denied=d;
+ await handleTickets(other.interaction,config);assert.match(denied.content,/Só a equipa/);assert.equal(other.calls.closes.length,0);
+});
