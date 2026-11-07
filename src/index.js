@@ -1,4 +1,7 @@
-import { handleNotifications } from './notifications.js';
+import { orderXpRoles, levelsEmbed } from './xp-levels.js';
+import { levelChannel } from './level-announcements.js';
+import { createXpCheckpoint } from './xp-checkpoint.js';
+import { handleNotifications, offerJoinNotifications, notificationRoleId } from './notifications.js';
 import { createAuditLogger } from './audit.js';
 import { VoiceXp } from './voice-xp.js';
 import { handleLoja } from './loja.js';
@@ -30,6 +33,8 @@ const channels = {};
 const audit = createAuditLogger(client, config);
 const voiceXp = new VoiceXp(config, state, s => saveState(config.stateFile, s));
 let voiceTimer;
+let xpCheckpoint;
+let checkpointTimer;
 let stopMemberCounter;
 let voiceBusy = false;
 client.on(Events.VoiceStateUpdate, (oldVoice, newVoice) => {
@@ -37,7 +42,7 @@ client.on(Events.VoiceStateUpdate, (oldVoice, newVoice) => {
 });
 const report = (label, error) => console.error(`${label} falhou (código: ${error.code || error.name || 'desconhecido'}). Verifique permissões, configuração e acesso à plataforma.`);
 async function notify(kind, { url }) {
-  await channels[kind].send(announcement(kind, url, { ...config, role: config.role || state.notificationRoles?.[config.guild] || null }));
+  await channels[kind].send(announcement(kind, url, { ...config, role: notificationRoleId(config, kind) }));
   console.log(`Aviso ${kind} enviado para o canal ${config.channels[kind]}.`);
 }
 const monitor = new Monitor({ state, username: config.username, persist: s => saveState(config.stateFile, s), notify });
@@ -78,9 +83,22 @@ client.once(Events.ClientReady, async () => {
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     try {
+      xpCheckpoint = await createXpCheckpoint(guild, state, s => saveState(config.stateFile, s));
+      checkpointTimer = setInterval(() => { void xpCheckpoint.flush().catch(error => report('Guardar cópia de XP no Discord', error)); }, 60000);
+    } catch (error) { report('Recuperação/cópia de XP no Discord (verifique Gerir canais, Ler histórico e Anexar ficheiros)', error); }
+    try {
       const restored = await recoverXpFromRoles(guild, state, s => saveState(config.stateFile, s));
       console.log(`Proteção de XP: ${restored} membros recuperados pelo cargo. Estado: ${config.stateFile}. Preserve este ficheiro num volume persistente.`);
     } catch (error) { report('Recuperação de XP pelos cargos', error); }
+    if (xpCheckpoint) await xpCheckpoint.flush().catch(error => report('Guardar cópia inicial de XP', error));
+    try {
+      await orderXpRoles(guild);
+      const channel = await guild.channels.fetch(levelChannel);
+      const messages = await channel.messages.fetch({ limit: 100 });
+      for (const message of messages.values()) if (message.author.id === client.user.id && message.embeds.some(embed => embed.title === '✨ Níveis')) {
+        await message.edit({ embeds: [levelsEmbed()], allowedMentions: { parse: [] } });
+      }
+    } catch (error) { report('Ordem dos cargos e quadro de XP', error); }
     stopMemberCounter = startMemberCounter(guild, report);
     voiceXp.refresh(guild);
     voiceTimer = setInterval(async () => {
@@ -119,6 +137,7 @@ client.once(Events.ClientReady, async () => {
 });
 client.on(Events.GuildMemberAdd, async member => {
   if (member.guild.id !== config.guild) return;
+  void offerJoinNotifications(member, config).catch(error => report('Escolha de notificações por DM (o membro pode usar /notifyon)', error));
   void audit.member(member, true).catch(error => report('Log de entrada', error));
   try { await assignJoinRole(member, config); }
   catch (error) { report('Atribuir cargo de entrada (verifique Gerir cargos e a hierarquia)', error); }
@@ -169,11 +188,13 @@ client.on(Events.MessageBulkDelete, (messages, channel) => {
   void audit.bulkDelete(messages, channel).catch(error => report('Log de limpeza', error));
 });
 client.on(Events.Error, error => report('Discord', error));
-for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {
   stopping = true;
   clearInterval(voiceTimer);
+  clearInterval(checkpointTimer);
   stopMemberCounter?.();
   for (const timer of timers) clearTimeout(timer);
+  try { await saveState(config.stateFile, state); await xpCheckpoint?.flush(); } catch (error) { report('Guardar XP ao desligar', error); }
   client.destroy();
 });
 try { await client.login(config.token); }

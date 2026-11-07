@@ -15,7 +15,7 @@ export const xpCommand = new SlashCommandBuilder().setName('xp').setDescription(
  .addSubcommand(s=>s.setName('mensagem').setDescription('Publicar o quadro de níveis neste canal (Gerir servidor).'))
  .addSubcommand(s=>s.setName('ver').setDescription('Consultar o teu XP.'));
 export function levelsEmbed() {
- const lines = tiers.map(([xp, id, , benefit], index) => {
+ const lines = tiers.toReversed().map(([xp, id, , benefit], index) => {
   const value = String(xp).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return (index > 0 && index % 3 === 0 ? '\n' : '') + '<@&' + id + '> `'+ value + ' XP` - ' + benefit;
  });
@@ -32,4 +32,14 @@ export async function syncXpRoles(member, xp) {
  if (!member || member.user?.bot) return;
  const missing=tiers.filter(([threshold,id])=>xp>=threshold && !member.roles.cache.has(id)).map(([,id])=>id);
  if(missing.length) await member.roles.add(missing,'Níveis de XP conquistados');
+}
+
+export async function orderXpRoles(guild) {
+ const roles = await guild.roles.fetch();
+ const ranked = tiers.map(([, id]) => roles.get(id));
+ if (ranked.some(role => !role || !role.editable)) throw Error('Os nove cargos de XP devem existir e estar abaixo do cargo do bot.');
+ // Reuse the XP roles' existing positions so unrelated roles retain their slots.
+ const slots = ranked.map(role => role.position).sort((a,b) => a-b);
+ const positions = ranked.map((role,index) => ({ role: role.id, position: slots[index] }));
+ if (ranked.some((role,index) => role.position !== slots[index])) await guild.roles.setPositions(positions);
 }

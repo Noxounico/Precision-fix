@@ -20,7 +20,7 @@ export async function syncTicketAccess(guild, config) {
   }
   const channels = await guild.channels.fetch();
   for (const channel of channels.values()) {
-    const match = channel?.topic?.match(/^precision-(?:ticket|shop)(-closed)?:(\d+)(?::\d+)?$/);
+    const match = channel?.topic?.match(/^precision-(?:ticket|shop)(-closed)?:(\d+)(?::\d+|:claim:\d+)?$/);
     if (!match) continue;
     const deadline = deletionDeadline(channel.topic);
     if (deadline) scheduleTicketDeletion(channel, deadline);

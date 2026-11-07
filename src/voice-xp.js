@@ -36,8 +36,8 @@ export class VoiceXp {
   if(!members.length) return;
   await this.persist(this.state);
   for(const [member,xp,before] of members) {
-   await announceLevel(guild,member.id,before,xp);
    await syncXpRoles(member,xp);
+   await announceLevel(guild,member.id,before,xp);
   }
  }
 }

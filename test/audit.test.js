@@ -18,19 +18,24 @@ test('entrada/saída seguem para canais separados sem ping', async () => {
   assert.deepEqual(sent.map(item => item.id), ['join', 'leave']);
   assert.deepEqual(sent[0].payload.allowedMentions.parse, []);
 });
-test('logs de mensagens não copiam conteúdo e ignoram bots, DMs, canais de logs e previews', async () => {
+test('logs guardam conteúdo, antes/depois, anexos e cache de eliminações', async () => {
   const { audit, sent } = setup();
-  const message = { guildId: 'guild', channelId: 'ticket', id: 'id', author: { id: 'user', bot: false }, content: 'CONTEUDO_PRIVADO', editedTimestamp: 1 };
-  for (const action of ['create', 'edit', 'delete']) await audit.message(message, action);
+  const message = { guildId: 'guild', channelId: 'chat', id: 'id', author: { id: 'user', bot: false }, content: 'original', attachments: new Map(), editedTimestamp: 1 };
+  await audit.message(message, 'create');
+  await audit.message({ ...message, content: 'editado', editedTimestamp: 2 }, 'edit', message);
+  await audit.message({ guildId: 'guild', channelId: 'chat', id: 'id', partial: true }, 'delete');
   assert.equal(sent.length, 3);
-  assert(!JSON.stringify(sent).includes('CONTEUDO_PRIVADO'));
-  for (const patch of [{ guildId: null }, { author: { bot: true } }, { channelId: 'messages' }, { webhookId: 'hook' }]) {
-    await audit.message({ ...message, ...patch }, 'create');
-  }
-  await audit.message(message, 'edit', { ...message, partial: false });
-  assert.equal(sent.length, 3);
-  await audit.message({ ...message, author: null, partial: true }, 'delete');
-  assert.match(sent[3].payload.embeds[0].toJSON().fields[1].value, /Indisponível/);
+  const edited = sent[1].payload.embeds[0].toJSON();
+  assert.equal(edited.fields.find(f=>f.name==='Antes').value,'original');
+  assert.equal(edited.fields.find(f=>f.name==='Depois').value,'editado');
+  assert.equal(sent[2].payload.embeds[0].toJSON().fields.find(f=>f.name==='Conteúdo').value,'editado');
+  for (const patch of [{ guildId: null }, { author: { bot: true } }, { channelId: 'messages' }, { webhookId: 'hook' }]) await audit.message({ ...message, ...patch }, 'create');
+  await audit.message(message,'edit',{...message,partial:false});
+  assert.equal(sent.length,3);
+  await audit.message({...message,id:'long',content:'X'.repeat(4000)},'create');
+  assert.equal(sent[3].payload.files.length,1);
+  await audit.message({guildId:'guild',channelId:'chat',id:'unknown',partial:true},'delete');
+  assert.match(sent[4].payload.embeds[0].toJSON().fields.find(f=>f.name==='Conteúdo').value,/Indisponível/);
 });
 test('limpeza em massa e notifyon têm registos próprios; falha de acesso é detetada', async () => {
   const { audit, sent, client } = setup();

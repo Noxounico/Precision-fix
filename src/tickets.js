@@ -7,15 +7,27 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFl
 export const painelCommand = new SlashCommandBuilder().setName('painel')
   .setDescription('Envia o painel de tickets para este canal.')
   .setDefaultMemberPermissions(P.ManageGuild);
-const buttons = (id, label, style) => [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(id).setLabel(label).setEmoji(id === 'tickets:open' ? '🎫' : '🔒').setStyle(style))];
 const opening = new Set();
 const closing = new Set();
-const ticketOwner = channel => channel?.topic?.match(/^precision-(?:ticket|shop):(\d+)$/)?.[1];
+const claiming = new Set();
+const ticketOwner = channel => channel?.topic?.match(/^precision-(?:ticket|shop):(\d+)(?::claim:\d+)?$/)?.[1];
 const has = (permissions, ...flags) => !!permissions?.has(flags);
 
+export function ticketName(user, kind = 'normal') {
+  const name = (user.username || user.id).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 75) || user.id;
+  return `ticket-${name}${kind === 'shop' ? '-compra' : kind === 'partnership' ? '-parceria' : ''}`;
+}
+export function ticketControls(shop, claimed = false) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('tickets:close').setLabel('Fechar ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('tickets:claim').setLabel(claimed ? 'Ticket assumido' : 'Assumir ticket').setDisabled(claimed).setStyle(ButtonStyle.Primary),
+  );
+  if (shop) row.addComponents(new ButtonBuilder().setCustomId('tickets:cancel').setLabel('Cancelar compra').setStyle(ButtonStyle.Secondary));
+  return [row];
+}
 export async function handleTickets(interaction, config) {
   const panel = interaction.isChatInputCommand() && interaction.commandName === 'painel';
-  const button = interaction.isButton() && ['tickets:open', 'shop:open', 'tickets:close'].includes(interaction.customId);
+  const button = interaction.isButton() && ['tickets:open', 'tickets:partnership', 'shop:open', 'tickets:close', 'tickets:claim', 'tickets:cancel'].includes(interaction.customId);
   if (!panel && !button) return false;
   const reply = content => interaction.reply({ content, flags: 64, allowedMentions: { parse: [] } });
   if (interaction.guildId !== config.guild) {
@@ -29,7 +41,9 @@ export async function handleTickets(interaction, config) {
       await reply('Preciso de Enviar mensagens e Inserir links neste canal.'); return true;
     }
     await interaction.reply({ embeds: [ticketPanel(interaction.guild, config.banner)],
-      components: buttons('tickets:open', 'Abrir ticket', ButtonStyle.Secondary), allowedMentions: { parse: [] } });
+      components: [new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('tickets:open').setLabel('Abrir ticket').setEmoji('🎫').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('tickets:partnership').setLabel('Parceria').setEmoji('🤝').setStyle(ButtonStyle.Secondary))], allowedMentions: { parse: [] } });
     return true;
   }
   const me = interaction.guild.members.me || await interaction.guild.members.fetchMe();
@@ -38,7 +52,7 @@ export async function handleTickets(interaction, config) {
   }
   const shop = interaction.customId === 'shop:open' || isShopTicket(interaction.channel);
   const roles = shop ? shopRoles : config.ticketSupportRoles;
-  if (['tickets:open', 'shop:open'].includes(interaction.customId)) {
+  if (['tickets:open', 'tickets:partnership', 'shop:open'].includes(interaction.customId)) {
     const key = `${config.guild}:${interaction.user.id}:${shop}`;
     if (opening.has(key)) { await reply('O teu ticket já está a ser aberto.'); return true; }
     opening.add(key);
@@ -54,13 +68,13 @@ export async function handleTickets(interaction, config) {
       const overwrites = supportOverwrites(interaction.guild, me.id, roles, interaction.user.id);
       // No inherited category permissions: every ticket starts private.
       const channel = await interaction.guild.channels.create({
-        name: `${shop ? 'compra' : 'ticket'}-${interaction.user.id}`, type: ChannelType.GuildText,
+        name: ticketName(interaction.user, shop ? 'shop' : interaction.customId === 'tickets:partnership' ? 'partnership' : 'normal'), type: ChannelType.GuildText,
         topic: `precision-${shop ? 'shop' : 'ticket'}:${interaction.user.id}`, permissionOverwrites: overwrites,
         reason: `Ticket solicitado pelo membro ${interaction.user.id}`,
       });
       await interaction.editReply({ content: `Ticket aberto: <#${channel.id}>.`, allowedMentions: { parse: [] } });
       await channel.send({ embeds: [ticketWelcome(interaction.guild, interaction.user.id, roles)],
-        components: buttons('tickets:close', 'Fechar ticket', ButtonStyle.Secondary), allowedMentions: { parse: [] } });
+        components: ticketControls(shop), allowedMentions: { parse: [] } });
     } finally { opening.delete(key); }
     return true;
   }
@@ -68,11 +82,32 @@ export async function handleTickets(interaction, config) {
   if (!owner) { await reply('Este canal não é um ticket aberto deste bot.'); return true; }
   const member = await interaction.guild.members.fetch(interaction.user.id);
   const staff = roles.some(id => member.roles.cache.has(id));
-  if (!staff) { await reply('Só a equipa autorizada deste ticket pode fechá-lo.'); return true; }
+  if (interaction.customId === 'tickets:claim') {
+    if (!staff) { await reply('Só a equipa autorizada pode assumir tickets.'); return true; }
+    if (claiming.has(interaction.channelId) || closing.has(interaction.channelId)) { await reply('Este ticket já está a ser atualizado.'); return true; }
+    claiming.add(interaction.channelId);
+    try {
+      await interaction.deferReply({ flags: 64 });
+      const channel = await interaction.guild.channels.fetch(interaction.channelId);
+      if (!ticketOwner(channel)) { await interaction.editReply('Este ticket já foi fechado.'); return true; }
+      const claimant = channel.topic.match(/:claim:(\d+)$/)?.[1];
+      if (claimant) { await interaction.editReply({ content: `Ticket já assumido por <@${claimant}>.`, allowedMentions: { parse: [] } }); return true; }
+      await channel.edit({ topic: `${channel.topic}:claim:${interaction.user.id}` });
+      await interaction.message.edit({ components: ticketControls(shop, true) });
+      await channel.send({ content: `🙋 Ticket assumido por <@${interaction.user.id}>.`, allowedMentions: { parse: [] } });
+      await interaction.editReply('Assumiste este ticket.');
+    } finally { claiming.delete(interaction.channelId); }
+    return true;
+  }
+  const cancel = interaction.customId === 'tickets:cancel';
+  if (cancel && !shop) { await reply('Este ticket não é uma compra.'); return true; }
+  if (!staff && !(cancel && interaction.user.id === owner)) { await reply('Só a equipa autorizada deste ticket pode fechá-lo.'); return true; }
+  if (claiming.has(interaction.channelId)) { await reply('Este ticket está a ser assumido. Tenta novamente.'); return true; }
   if (closing.has(interaction.channelId)) { await reply('Este ticket já está a ser fechado.'); return true; }
   closing.add(interaction.channelId);
   try {
     await interaction.deferReply({ flags: 64 });
+    if (cancel) await interaction.channel.send({ content: `❌ Compra cancelada por <@${interaction.user.id}>.`, allowedMentions: { parse: [] } });
     const delivery = await deliverTranscript(interaction, config, owner);
     // The archive succeeded. Only now mark this channel for deletion.
     await interaction.channel.permissionOverwrites.edit(owner, { SendMessages: false });

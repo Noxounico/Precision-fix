@@ -130,3 +130,23 @@ test('se o registo dos comandos atuais falhar, não remove os comandos antigos',
   } };
   await assert.rejects(registerCommands(guild));
 });
+
+test('tickets: nom de compra, parceria, controlos e assunção persistente', async () => {
+ const shop = ticketInteraction({ customId: 'shop:open', user: { id: '456', username: 'Ráfael Nome' } });
+ shop.guild.roles = { fetch: async id => ({ id, managed: false }) };
+ await handleTickets(shop, config);
+ assert.equal(shop.calls.creates[0].name,'ticket-rafael-nome-compra');
+ assert.deepEqual(shop.calls.sends[0].components[0].toJSON().components.map(c=>c.custom_id),['tickets:close','tickets:claim','tickets:cancel']);
+ const partnership=ticketInteraction({customId:'tickets:partnership',user:{id:'456',username:'rafael'}});
+ await handleTickets(partnership,config);assert.equal(partnership.calls.creates[0].name,'ticket-rafael-parceria');
+ const claim=ticketInteraction({customId:'tickets:claim',user:{id:'789'}});
+ claim.guild.members.fetch=async()=>({roles:{cache:new Collection([['staff',true]])}});
+ claim.guild.channels.fetch=async()=>claim.channel;
+ claim.channel.edit=async data=>{Object.assign(claim.channel,data);claim.calls.channelEdits.push(data);};
+ await handleTickets(claim,{...config,ticketSupportRoles:['staff']});
+ assert.equal(claim.channel.topic,'precision-ticket:456:claim:789');
+ await handleTickets(claim,{...config,ticketSupportRoles:['staff']});assert.equal(claim.calls.channelEdits.length,1);
+ assert.match(claim.calls.edits.at(-1).content,/já assumido/);
+ const deny=ticketInteraction({customId:'tickets:claim'});await handleTickets(deny,{...config,ticketSupportRoles:['staff']});
+ assert.match(deny.calls.replies[0].content,/Só a equipa/);
+});

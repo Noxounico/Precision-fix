@@ -1,59 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Collection, PermissionsBitField, PermissionFlagsBits as P } from 'discord.js';
-import { handleNotifications, notificationRole } from '../src/notifications.js';
-const guildId = '1560784472083800298', roleId = '1568356000000000001';
+import { PermissionsBitField, PermissionFlagsBits as P } from 'discord.js';
+import { handleNotifications, notificationPicker, offerJoinNotifications, defaultNotificationRoles } from '../src/notifications.js';
+const guildId = '1560784472083800298', userId = '1560784472083800299';
 function setup() {
-  const state = { version: 1, accounts: {} }, config = { guild: guildId, role: null };
-  const added = [], removed = [], logs = [], replies = [], created = [];
-  const role = { id: roleId, managed: false, editable: true, mentionable: true, permissions: new PermissionsBitField() };
-  const cache = new Collection();
-  const guild = { id: guildId, roles: { fetch: async () => role, create: async data => { created.push(data); return role; } },
-    members: { me: { permissions: new PermissionsBitField(P.ManageRoles) }, fetch: async () => ({ roles: { cache,
-      add: async id => { added.push(id); cache.set(id, role); }, remove: async id => { removed.push(id); cache.delete(id); } } }) } };
-  const interaction = { guildId, guild, isChatInputCommand: () => true, commandName: 'notifyon', user: { id: 'user' },
-    deferReply: async () => {}, editReply: async text => replies.push(text), reply: async text => replies.push(text) };
-  const audit = { notifyOn: async (...args) => logs.push(args) };
-  return { state, config, interaction, role, added, removed, logs, replies, created, audit };
+ const added=[],removed=[],replies=[],logs=[];
+ const cache=new Map();
+ const role={id:defaultNotificationRoles.live,editable:true,mentionable:true,permissions:new PermissionsBitField()};
+ const member={roles:{cache,add:async id=>{added.push(id);cache.set(id,true);},remove:async ids=>{removed.push(ids);for(const id of Array.isArray(ids)?ids:[ids])cache.delete(id);}}};
+ const guild={id:guildId,roles:{fetch:async id=>({...role,id})},members:{me:{permissions:new PermissionsBitField(P.ManageRoles)},fetch:async()=>member}};
+ const interaction={guildId,guild,user:{id:userId},isChatInputCommand:()=>true,isButton:()=>false,commandName:'notifyon',reply:async d=>replies.push(d),deferReply:async()=>{},editReply:async d=>replies.push(d)};
+ return {added,removed,replies,logs,cache,role,guild,interaction,config:{guild:guildId},state:{},audit:{notifyOn:async(...args)=>logs.push(args)}};
 }
-test('notifyon cria cargo sem privilégios, adere uma vez e notifyoff cancela; todos geram log', async () => {
-  const f = setup();
-  const persist = async () => {};
-  await handleNotifications(f.interaction, f.config, f.state, persist, f.audit);
-  await handleNotifications(f.interaction, f.config, f.state, persist, f.audit);
-  assert.deepEqual(f.created[0].permissions, []); assert.equal(f.created[0].mentionable, true);
-  assert.equal(f.created.length, 1); assert.deepEqual(f.added, [roleId]);
-  assert.equal(f.state.notificationRoles[guildId], roleId);
-  f.interaction.commandName = 'notifyoff';
-  await handleNotifications(f.interaction, f.config, f.state, persist, f.audit);
-  assert.deepEqual(f.removed, [roleId]); assert.equal(f.logs.length, 3);
+const run=f=>handleNotifications(f.interaction,f.config,f.state,async()=>{},f.audit);
+const button=(f,kind)=>{f.interaction.isChatInputCommand=()=>false;f.interaction.isButton=()=>true;f.interaction.customId=`notify:${guildId}:${userId}:${kind}`;};
+test('/notifyon apresenta escolhas sem atribuir cargos; lives/vídeos independentes e toggle',async()=>{
+ const f=setup();await run(f);assert.equal(f.added.length,0);assert.equal(f.replies[0].components[0].toJSON().components.length,3);
+ button(f,'live');await run(f);button(f,'video');await run(f);
+ assert.deepEqual(f.added,[defaultNotificationRoles.live,defaultNotificationRoles.video]);
+ button(f,'live');await run(f);assert.equal(f.cache.has(defaultNotificationRoles.video),true);assert.deepEqual(f.removed,[defaultNotificationRoles.live]);
+ f.interaction.isChatInputCommand=()=>true;f.interaction.isButton=()=>false;f.interaction.commandName='notifyoff';await run(f);
+ assert.equal(f.cache.size,0);assert.equal(f.logs.length,4);
 });
-test('cargo com privilégios, gerido ou acima do bot nunca é atribuído', async () => {
-  for (const patch of [{ permissions: new PermissionsBitField(P.Administrator) }, { managed: true }, { editable: false }, { mentionable: false }]) {
-    const f = setup(); Object.assign(f.role, patch); f.config.role = roleId;
-    await handleNotifications(f.interaction, f.config, f.state, async () => {}, f.audit);
-    assert.equal(f.added.length, 0); assert.match(f.replies[0], /Não consegui/);
-  }
+test('DM de entrada funciona e bot/outro membro não ganha cargos',async()=>{
+ const f=setup();let sent;
+ await offerJoinNotifications({id:userId,guild:f.guild,user:{bot:false},send:async p=>sent=p},f.config);
+ assert.equal(sent.components[0].toJSON().components[0].custom_id,notificationPicker(guildId,userId).components[0].toJSON().components[0].custom_id);
+ button(f,'live');f.interaction.guildId=null;f.interaction.guild=null;f.interaction.client={guilds:{fetch:async()=>f.guild}};await run(f);assert.equal(f.added.length,1);
+ f.interaction.user.id='other';await run(f);assert.equal(f.added.length,1);assert.match(f.replies.at(-1).content,/pertence/);
 });
-test('notifyoff sem adesões não cria cargo; persistência e concorrência não duplicam cargos', async () => {
-  const f = setup();
-  assert.equal(await notificationRole(f.interaction.guild, f.config, f.state, async () => {}, false), null);
-  await Promise.all([notificationRole(f.interaction.guild, f.config, f.state, async () => {}, true), notificationRole(f.interaction.guild, f.config, f.state, async () => {}, true)]);
-  assert.equal(f.created.length, 1);
-  const g = setup();
-  await assert.rejects(notificationRole(g.interaction.guild, g.config, g.state, async () => { throw Error('disk'); }, true));
-  await notificationRole(g.interaction.guild, g.config, g.state, async () => {}, true);
-  assert.equal(g.created.length, 1);
+test('recusa cargos privilegiados, não mencionáveis, geridos ou acima do bot',async()=>{
+ for(const patch of [{permissions:new PermissionsBitField(P.Administrator)},{mentionable:false},{managed:true},{editable:false}]) {
+  const f=setup();Object.assign(f.role,patch);button(f,'live');await run(f);assert.equal(f.added.length,0);assert.match(f.replies[0].content,/Não consegui/);
+ }
 });
-test('sem Gerir cargos não atribui; falha do log não desfaz uma adesão válida', async t => {
-  const f = setup(); f.interaction.guild.members.me.permissions = new PermissionsBitField();
-  await handleNotifications(f.interaction, f.config, f.state, async () => {}, f.audit);
-  assert.equal(f.created.length, 0); assert.equal(f.added.length, 0);
-  const g = setup();
-  const logger = t.mock.method(console, 'error', () => {});
-  g.audit.notifyOn = async () => { throw Error('log unavailable'); };
-  await handleNotifications(g.interaction, g.config, g.state, async () => {}, g.audit);
-  assert.deepEqual(g.added, [roleId]);
-  assert.match(g.replies[0], /Ativou/);
-  assert.equal(logger.mock.callCount(), 1);
+test('cliques concorrentes não alternam a mesma preferência duas vezes',async()=>{
+ const f=setup();button(f,'live');let release;f.interaction.guild.members.fetch=()=>new Promise(r=>release=r);
+ const first=run(f);await new Promise(r=>setImmediate(r));await run(f);
+ release({roles:{cache:f.cache,add:async id=>f.added.push(id)}});await first;assert.equal(f.added.length,1);
 });
