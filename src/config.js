@@ -1,3 +1,4 @@
+import { resolve, join, relative, isAbsolute } from 'node:path';
 import 'dotenv/config';
 // Public server/profile settings supplied by the owner. Never store tokens here.
 const defaults = Object.freeze({
@@ -18,6 +19,20 @@ const defaults = Object.freeze({
   BOT_BANNER_URL: 'https://media.discordapp.net/attachments/1560786047456120832/1562020832543248465/814fb6b110e20c2d902c71f6dda0caf3.gif?ex=6adfb903&is=6ade6783&hm=97bb6f06f2388c1ebbba6f1100fd4ab7d39b80444e5c1e5dd215338916bdc697&=&width=501&height=218',
   DIVULGAR_IMAGE_URL: 'https://media.discordapp.net/attachments/1564100986870435943/1564101030474420355/c93d7fa7-b022-4220-89d9-610137db1463.png?ex=6ae00a19&is=6adeb899&hm=1b4375f593f62a92e0cee66ca293d0f5ce09012cdf6e4864513071de9621cc43&=&format=webp&quality=lossless&width=583&height=583',
 });
+export function stateFilePath(env) {
+  const mount = env.RAILWAY_VOLUME_MOUNT_PATH?.trim();
+  const requested = env.STATE_FILE?.trim();
+  if (mount) {
+    const path = !requested || ['./data/state.json', '/app/data/state.json'].includes(requested) ? join(mount, 'state.json') : resolve(requested);
+    const rel = relative(resolve(mount), resolve(path));
+    if (rel === '..' || rel.startsWith('../') || isAbsolute(rel)) throw Error('STATE_FILE deve ficar dentro do volume persistente do Railway.');
+    return path;
+  }
+  if (env.RAILWAY_SERVICE_ID || env.RAILWAY_PROJECT_ID || env.RAILWAY_ENVIRONMENT_ID) {
+    throw Error('Liga um volume persistente ao serviço do bot no Railway (mount path /app/data) antes de arrancar, para o XP não voltar a zero.');
+  }
+  return requested || './data/state.json';
+}
 export function readConfig(env = process.env, { requireToken = true } = {}) {
   env = { ...defaults, ...Object.fromEntries(Object.entries(env).filter(([, value]) => typeof value === 'string' && value.trim() !== '')) };
   const required = ['GUILD_ID', 'WELCOME_CHANNEL_ID', 'LEAVE_CHANNEL_ID', 'LIVE_CHANNEL_ID', 'VIDEO_CHANNEL_ID', 'TIKTOK_USERNAME'];
@@ -65,6 +80,6 @@ export function readConfig(env = process.env, { requireToken = true } = {}) {
     banner: env.BOT_BANNER_URL || null,
     liveInterval: seconds('LIVE_POLL_SECONDS', 60, 30),
     videoInterval: seconds('VIDEO_POLL_SECONDS', 60, 60),
-    ytdlp: env.YTDLP_BIN || 'yt-dlp', stateFile: env.STATE_FILE || './data/state.json',
+    ytdlp: env.YTDLP_BIN || 'yt-dlp', stateFile: stateFilePath(env),
   };
 }

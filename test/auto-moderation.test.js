@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const config = { guild: '123', joinRole: '1560785907509108787' };
 const channelId = '1560785968024522984';
-test('evento real de novas mensagens executa banimento antes do XP e reporta falhas', async () => {
+test('mensagens executam moderação sem dar XP e reportam falhas', async () => {
  const source = await readFile(new URL('../src/index.js', import.meta.url), 'utf8');
  const start = source.indexOf('client.on(Events.MessageCreate,');
  const end = source.indexOf('client.on(Events.Error,', start);
@@ -25,10 +25,10 @@ test('evento real de novas mensagens executa banimento antes do XP e reporta fal
  await listener(message);
  assert.deepEqual(calls, ['ban', 'delete']);
  await listener({ ...message, channelId: 'normal' });
- assert.deepEqual(calls, ['ban', 'delete', 'xp']);
+ assert.deepEqual(calls, ['ban', 'delete']);
  message.guild.members.ban = async () => { throw Error('Missing Permissions'); };
  await listener(message);
- assert.deepEqual(calls, ['ban', 'delete', 'xp', 'error']);
+ assert.deepEqual(calls, ['ban', 'delete', 'error']);
 });
 test('cargo atribuído apenas no servidor configurado', async () => {
  const calls = []; const member = { guild: { id: 'other' }, roles: { add: async id => calls.push(id) } };

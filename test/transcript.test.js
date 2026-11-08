@@ -1,3 +1,6 @@
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Collection, PermissionFlagsBits as P, PermissionsBitField } from 'discord.js';
@@ -94,14 +97,16 @@ test('sem Ler histórico não produz uma transcrição vazia nem fecha o ticket'
   assert.equal(calls.archive.length, 0); assert.equal(calls.closes.length, 0);
 });
 
-test('comprador cancela compra, arquiva transcrição e utilizador alheio é recusado', async () => {
+test('compra guarda transcrição sem canal de arquivo e utilizador alheio é recusado', async () => {
  const {calls,interaction}=fixture();
  interaction.channel.topic='precision-shop:456:claim:789';interaction.customId='tickets:cancel';interaction.user.id='456';
- const archive={id:'archive',type:0,topic:'precision-shop-archive',isTextBased:()=>true,isThread:()=>false,permissionOverwrites:{set:async()=>{}},send:async data=>calls.archive.push(data)};
- interaction.guild.channels.fetch=async()=>new Collection([['archive',archive]]);
+ const directory=await mkdtemp(join(tmpdir(),'shop-transcript-'));
+ interaction.guild.channels.fetch=async()=>assert.fail('Não deve procurar nem criar arquivo de compras');
  interaction.guild.members.fetch=async()=>({roles:{cache:new Collection()}});
- await handleTickets(interaction,config);
- assert.equal(calls.archive.length,1);assert.match(calls.closes[0].topic,/^precision-shop-closed:456:/);
+ await handleTickets(interaction,{...config,stateFile:join(directory,'state.json')});
+ assert.equal(calls.archive.length,0);assert.equal(calls.dm.length,1);
+ assert.match(await readFile(join(directory,'transcripts','123','ticket','1.txt'),'utf8'),/Pedido de ajuda/);
+ assert.match(calls.closes[0].topic,/^precision-shop-closed:456:/);
  const other=fixture();other.interaction.customId='tickets:cancel';other.interaction.channel.topic='precision-shop:456';
  other.interaction.guild.members.fetch=async()=>({roles:{cache:new Collection()}});
  let denied;other.interaction.reply=async d=>denied=d;

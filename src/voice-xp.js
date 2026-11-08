@@ -2,25 +2,24 @@ import { multiplier, syncXpRoles } from './xp-levels.js';
 import { announceLevel } from './level-announcements.js';
 export class VoiceXp {
  constructor(config,state,persist,now=()=>Date.now()) {
-  Object.assign(this,{config,state,persist,now}); this.active=new Map(); this.credit=new Map(); this.last=now();
+  Object.assign(this,{config,state,persist,now}); this.active=new Map(); this.last=now();
+  this.credit=new Map(Object.entries(state.voiceCredits?.[config.guild] || {}).map(([id,ms])=>[id,{ms,member:null}]));
  }
  refresh(guild) {
   if(guild.id!==this.config.guild) return;
   const now=this.now();
   for(const [id,member] of this.active) {
-   const record=this.credit.get(id)||{ms:0,member}; record.ms+=Math.max(0,now-this.last); this.credit.set(id,record);
+   const record=this.credit.get(id)||{ms:0,member};
+   record.ms+=Math.max(0,now-this.last); record.member=member; this.credit.set(id,record);
   }
   this.last=now; this.active.clear();
-  const rooms=new Map();
   for(const voice of guild.voiceStates.cache.values()) {
-   if(!voice.channelId || voice.channelId===guild.afkChannelId || !voice.member || voice.member.user.bot) continue;
-   const room=rooms.get(voice.channelId)||[]; room.push(voice); rooms.set(voice.channelId,room);
-  }
-  for(const room of rooms.values()) if(room.length>=2) for(const voice of room) {
-   if(!voice.selfDeaf && !voice.serverDeaf) this.active.set(voice.id,voice.member);
+   if(!voice.channelId || voice.channelId===guild.afkChannelId || !voice.member || voice.member.user.bot || voice.selfDeaf || voice.serverDeaf) continue;
+   this.active.set(voice.id,voice.member);
   }
  }
  async tick(guild) {
+  if(guild.id!==this.config.guild) return;
   this.refresh(guild);
   const members=[];
   for(const [id,credit] of this.credit) {
@@ -33,11 +32,15 @@ export class VoiceXp {
    for(let i=0;i<minutes;i++) record.xp+=10*multiplier(record.xp);
    members.push([credit.member,record.xp,before]);
   }
-  if(!members.length) return;
+  // Save incomplete minutes too. A restart resumes them without crediting downtime.
+  (this.state.voiceCredits ||= {})[this.config.guild]=Object.fromEntries([...this.credit].filter(([,c])=>c.ms>0).map(([id,c])=>[id,c.ms]));
   await this.persist(this.state);
   for(const [member,xp,before] of members) {
-   await syncXpRoles(member,xp);
-   await announceLevel(guild,member.id,before,xp);
+   if(!member) continue;
+   try {
+    await syncXpRoles(member,xp);
+    await announceLevel(guild,member.id,before,xp);
+   } catch(error) { console.error(`Cargos/aviso de XP para ${member.id}: ${error.code || error.name}. XP guardado.`); }
   }
  }
 }

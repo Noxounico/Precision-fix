@@ -1,6 +1,6 @@
 import { orderXpRoles, levelsEmbed } from './xp-levels.js';
 import { levelChannel } from './level-announcements.js';
-import { createXpCheckpoint } from './xp-checkpoint.js';
+import { removeLegacyChannels } from './xp-checkpoint.js';
 import { notificationRoleId } from './notifications.js';
 import { createAuditLogger } from './audit.js';
 import { VoiceXp } from './voice-xp.js';
@@ -24,17 +24,17 @@ import { tiktok } from './tiktok.js';
 import { handleDivulgar } from './divulgar.js';
 import { registerCommands } from './commands.js';
 import { handleTickets } from './tickets.js';
-import { awardXp, handleXp } from './xp.js';
+import { handleXp } from './xp.js';
 
 const config = readConfig();
 const state = await loadState(config.stateFile);
+// Verify storage is writable before connecting or removing legacy channels.
+await saveState(config.stateFile, state);
 const client = new Client({ partials: [Partials.Message, Partials.Channel], intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates, ...(config.messageContent ? [GatewayIntentBits.MessageContent] : [])] });
 const channels = {};
 const audit = createAuditLogger(client, config);
 const voiceXp = new VoiceXp(config, state, s => saveState(config.stateFile, s));
 let voiceTimer;
-let xpCheckpoint;
-let checkpointTimer;
 let stopMemberCounter;
 let voiceBusy = false;
 client.on(Events.VoiceStateUpdate, (oldVoice, newVoice) => {
@@ -83,14 +83,12 @@ client.once(Events.ClientReady, async () => {
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
     try {
-      xpCheckpoint = await createXpCheckpoint(guild, state, s => saveState(config.stateFile, s));
-      checkpointTimer = setInterval(() => { void xpCheckpoint.flush().catch(error => report('Guardar cópia de XP no Discord', error)); }, 60000);
-    } catch (error) { report('Recuperação/cópia de XP no Discord (verifique Gerir canais, Ler histórico e Anexar ficheiros)', error); }
+      await removeLegacyChannels(guild, state, s => saveState(config.stateFile, s));
+    } catch (error) { console.error(`Migração dos canais antigos: ${error.message}`); }
     try {
       const restored = await recoverXpFromRoles(guild, state, s => saveState(config.stateFile, s));
       console.log(`Proteção de XP: ${restored} membros recuperados pelo cargo. Estado: ${config.stateFile}. Preserve este ficheiro num volume persistente.`);
     } catch (error) { report('Recuperação de XP pelos cargos', error); }
-    if (xpCheckpoint) await xpCheckpoint.flush().catch(error => report('Guardar cópia inicial de XP', error));
     try {
       await orderXpRoles(guild);
       const channel = await guild.channels.fetch(levelChannel);
@@ -172,17 +170,19 @@ client.on(Events.MessageCreate, async message => {
     report('Banimento automático ou eliminação da mensagem (verifique Banir membros, Gerir mensagens e a hierarquia de cargos)', error);
     return;
   }
-  void awardXp(message, config, state, s => saveState(config.stateFile, s))
-    .catch(error => report('Guardar XP', error));
 });
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {
   stopping = true;
   clearInterval(voiceTimer);
-  clearInterval(checkpointTimer);
   stopMemberCounter?.();
   for (const timer of timers) clearTimeout(timer);
-  try { await saveState(config.stateFile, state); await xpCheckpoint?.flush(); } catch (error) { report('Guardar XP ao desligar', error); }
+  try {
+    while (voiceBusy) await new Promise(resolve => setTimeout(resolve, 10));
+    const guild = client.guilds.cache.get(config.guild);
+    if (guild) await voiceXp.tick(guild);
+    await saveState(config.stateFile, state);
+  } catch (error) { report('Guardar XP ao desligar', error); }
   client.destroy();
 });
 try { await client.login(config.token); }
