@@ -171,3 +171,12 @@ Os comandos de adesão a notificações, os convites por DM à entrada e os logs
 - **Railway:** liga um Volume ao serviço do bot com mount path `/app/data`. A variável `RAILWAY_VOLUME_MOUNT_PATH` fornecida pelo Railway é detetada automaticamente. `STATE_FILE` deve ficar dentro desse volume; os caminhos antigos predefinidos são redirecionados para o volume. Sem volume, o bot para com uma mensagem de configuração em vez de voltar a iniciar com XP vazio. O Docker usa o utilizador `node`; se o volume for montado como root e surgir EACCES, configura `RAILWAY_RUN_UID=0` no serviço conforme a documentação do Railway. Não é possível criar/ligar esse volume apenas alterando ficheiros no GitHub.
 - **Outros alojamentos:** aponta `STATE_FILE` para armazenamento persistente do serviço. Um ficheiro dentro de um contentor temporário não sobrevive à substituição desse contentor.
 - Os pontos exatos já perdidos antes desta alteração não podem ser reconstruídos sem um backup; os cargos existentes recuperam apenas o XP mínimo correspondente. O backup antigo é importado, quando disponível, antes de apagar o canal.
+
+
+### Sorteio de 2 keys do painel de mira fixa
+
+Usa `/sorteio` no canal onde queres publicar o cartão. Precisa de **Gerir servidor** para iniciar; os restantes membros participam pelo botão **Participar**. Cada pessoa entra uma única vez, sem custo. O prémio é fixo: **2 vencedores distintos, 1 key do painel de mira fixa por vencedor**. O bot não gera nem distribui keys; a entrega é feita pela equipa.
+
+O prazo é sempre de **24 horas**. No final, o bot escolhe aleatoriamente os vencedores, atualiza a mensagem original com o resultado e desativa o botão. Com um participante há apenas um vencedor; sem participantes não são atribuídas keys. Não publica mensagens repetidas de resultado nem volta a sortear em caso de falha de envio.
+
+O prazo, participantes e resultado ficam guardados em `STATE_FILE`, no mesmo volume persistente do XP. Um reinício retoma os sorteios pendentes; se o prazo passou enquanto o bot esteve desligado, termina quando voltar a ligar. Falhas temporárias no Discord repetem a publicação do mesmo resultado ao fim de 30 segundos. Uma mensagem/canal apagados são assinalados como concluídos, conservando o resultado no estado. O bot precisa de acesso ao canal, Enviar mensagens, Inserir links e Ler histórico para encerrar o sorteio; os membros devem conseguir ver a mensagem.

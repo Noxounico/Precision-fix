@@ -1,3 +1,4 @@
+import { Giveaways } from './giveaways.js';
 import { orderXpRoles, levelsEmbed } from './xp-levels.js';
 import { levelChannel } from './level-announcements.js';
 import { removeLegacyChannels } from './xp-checkpoint.js';
@@ -47,6 +48,7 @@ async function notify(kind, { url }) {
 }
 const monitor = new Monitor({ state, username: config.username, persist: s => saveState(config.stateFile, s), notify });
 const source = tiktok(config);
+const giveaways = new Giveaways({ client, config, state, persist: s => saveState(config.stateFile, s) });
 let stopping = false;
 const timers = new Set();
 async function poll(kind, interval) {
@@ -79,9 +81,10 @@ client.once(Events.ClientReady, async () => {
     const guild = await client.guilds.fetch(config.guild);
     try {
       await registerCommands(guild);
-      console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup, /bckup registados. Comandos antigos e duplicados globais deste bot removidos.');
+      console.log('Comandos /divulgar, /painel, /regras, /xp, /clear, /ban, /backup, /bckup, /sorteio registados. Comandos antigos e duplicados globais deste bot removidos.');
     } catch (error) { report('Registo dos comandos (verifique autorização applications.commands)', error); }
     await guild.members.fetchMe();
+    giveaways.start();
     try {
       await removeLegacyChannels(guild, state, s => saveState(config.stateFile, s));
     } catch (error) { console.error(`Migração dos canais antigos: ${error.message}`); }
@@ -145,6 +148,7 @@ client.on(Events.GuildMemberRemove, member => {
 });
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    if (await giveaways.handle(interaction)) return;
     if (await handleLoja(interaction, config)) return;
     if (await handleBan(interaction, config, state, s => saveState(config.stateFile, s))) return;
     if (await handleRegras(interaction, config)) return;
@@ -174,6 +178,7 @@ client.on(Events.MessageCreate, async message => {
 client.on(Events.Error, error => report('Discord', error));
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {
   stopping = true;
+  giveaways.stop();
   clearInterval(voiceTimer);
   stopMemberCounter?.();
   for (const timer of timers) clearTimeout(timer);

@@ -1,3 +1,4 @@
+import { giveawayCommand } from './giveaways.js';
 import { banCommand } from './auto-moderation.js';
 import { lojaCommand } from './loja.js';
 import { regrasCommand } from './regras.js';
@@ -8,7 +9,7 @@ import { xpCommands } from './xp.js';
 import { painelCommand } from './tickets.js';
 
 export async function registerCommands(guild, globalManager = guild.client?.application?.commands) {
-  const definitions = [lojaCommand, banCommand, divulgarCommand, painelCommand, regrasCommand, ...xpCommands, clearCommand, ...backupCommands];
+  const definitions = [lojaCommand, banCommand, divulgarCommand, painelCommand, regrasCommand, ...xpCommands, clearCommand, ...backupCommands, giveawayCommand];
   const active = new Set(definitions.map(command => command.name));
   const commands = await guild.commands.fetch();
   for (const definition of definitions) {

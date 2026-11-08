@@ -15,6 +15,16 @@ export async function loadState(file) {
         if (!members || typeof members !== 'object' || Array.isArray(members) || Object.values(members).some(ms => !Number.isFinite(ms) || ms < 0 || ms >= 60000)) throw Error('invalid');
       }
     }
+    if (state.giveaways !== undefined) {
+      if (!state.giveaways || typeof state.giveaways !== 'object' || Array.isArray(state.giveaways)) throw Error('invalid');
+      const snowflake = id => typeof id === 'string' && /^\d{17,20}$/.test(id);
+      for (const [id, record] of Object.entries(state.giveaways)) {
+        if (!record || !snowflake(id) || record.messageId !== id || !snowflake(record.guildId) || !snowflake(record.channelId) || !Number.isSafeInteger(record.endsAt) || record.endsAt <= 0 || typeof record.completed !== 'boolean') throw Error('invalid');
+        if (!Array.isArray(record.participants) || !record.participants.every(snowflake) || new Set(record.participants).size !== record.participants.length) throw Error('invalid');
+        if (record.winners !== null && (!Array.isArray(record.winners) || record.winners.length > 2 || new Set(record.winners).size !== record.winners.length || !record.winners.every(winner => record.participants.includes(winner)))) throw Error('invalid');
+        if (record.completed && record.winners === null) throw Error('invalid');
+      }
+    }
     if (state.xp !== undefined) {
       if (!state.xp || typeof state.xp !== 'object' || Array.isArray(state.xp)) throw Error('invalid');
       for (const members of Object.values(state.xp)) {
