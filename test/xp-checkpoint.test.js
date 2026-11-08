@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createXpCheckpoint, mergeXpCheckpoint } from '../src/xp-checkpoint.js';
+import { removeLegacyChannels, mergeXpCheckpoint } from '../src/xp-checkpoint.js';
 import { levelsEmbed, tiers, orderXpRoles } from '../src/xp-levels.js';
 const guildId='1560784472083800298',userId='1560784472083800299';
 test('XP remoto recupera pontos exatos sem baixar progresso local e rejeita dados inválidos',()=>{
@@ -11,20 +11,27 @@ test('XP remoto recupera pontos exatos sem baixar progresso local e rejeita dado
  assert.throws(()=>mergeXpCheckpoint(state,{...remote,guild:'other'},guildId));
  assert.throws(()=>mergeXpCheckpoint(state,{...remote,xp:{[userId]:{xp:-1,lastAwardAt:0}}},guildId));
 });
-test('cópia privada sobrevive a arranque sem ficheiro local, evita duplicação e repete após falha',async()=>{
- let payload,saves=0,edits=0,fail=false;
- const state={xp:{[guildId]:{[userId]:{xp:1873,lastAwardAt:20}}}};
- const message={id:'10',author:{id:'bot'},content:'precision-xp-checkpoint-v1',attachments:new Map(),edit:async p=>{if(fail)throw Error('offline');edits++;payload=p;return message;}};
- const channel={id:'backup',type:0,topic:'precision-xp-checkpoint-v1',permissionOverwrites:{set:async rules=>assert.deepEqual(rules.map(r=>r.id),[guildId,'bot'])},messages:{fetch:async()=>new Map()},send:async p=>{payload=p;return message;}};
- const guild={id:guildId,members:{me:{id:'bot'}},channels:{fetch:async()=>new Map(),create:async p=>{assert.equal(p.permissionOverwrites.length,2);return channel;}}};
- const checkpoint=await createXpCheckpoint(guild,state,async()=>saves++);
- await Promise.all([checkpoint.flush(),checkpoint.flush()]);assert.equal(edits,0);
- const stored=payload.files[0].attachment.toString();
- message.attachments.set('file',{name:'xp-state.json',url:'https://cdn.discordapp.com/x',size:stored.length});
- channel.messages.fetch=async()=>new Map([['10',message]]);guild.channels.fetch=async()=>new Map([['backup',channel]]);
- const restored={};const restarted=await createXpCheckpoint(guild,restored,async()=>saves++,async()=>({ok:true,text:async()=>stored}));
- assert.equal(restored.xp[guildId][userId].xp,1873);assert.equal(saves,1);
- fail=true;await assert.rejects(restarted.flush());fail=false;await restarted.flush();assert.equal(edits,1);
+function migrationFixture() {
+ const deleted=[];
+ const attachment={name:'xp-state.json',url:'https://cdn.discordapp.com/x',size:100};
+ const message={id:'10',author:{id:'bot'},content:'precision-xp-checkpoint-v1',attachments:new Map([['file',attachment]])};
+ const backup={type:0,topic:'precision-xp-checkpoint-v1',messages:{fetch:async()=>new Map([['10',message]])},delete:async()=>deleted.push('xp')};
+ const archive={type:0,topic:'precision-shop-archive',delete:async()=>deleted.push('shop')};
+ const other={type:0,topic:'outro',delete:async()=>assert.fail('Canal alheio')};
+ const guild={id:guildId,members:{me:{id:'bot'}},channels:{fetch:async()=>new Map([['b',backup],['a',archive],['o',other]]),create:async()=>assert.fail('Não criar canais')}};
+ return {guild,deleted,download:async()=>({ok:true,text:async()=>JSON.stringify({version:1,guild:guildId,xp:{[userId]:{xp:1873,lastAwardAt:20}}})})};
+}
+test('migra XP antigo antes de remover apenas os dois canais marcados',async()=>{
+ const f=migrationFixture();const state={};
+ await removeLegacyChannels(f.guild,state,async()=>{assert.equal(state.xp[guildId][userId].xp,1873);assert.equal(f.deleted.length,0);},f.download);
+ assert.deepEqual(f.deleted,['xp','shop']);
+});
+test('falha de leitura ou gravação preserva o backup de XP',async()=>{
+ const f=migrationFixture();
+ await assert.rejects(removeLegacyChannels(f.guild,{},async()=>{},async()=>({ok:false})));
+ assert.deepEqual(f.deleted,[]);
+ await assert.rejects(removeLegacyChannels(f.guild,{},async()=>{throw Error('disk full');},f.download));
+ assert.deepEqual(f.deleted,[]);
 });
 test('quadro desce de Veterano III a Aprendiz I e cargos usam posições existentes',async()=>{
  const desc=levelsEmbed().toJSON().description;

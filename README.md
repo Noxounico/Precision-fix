@@ -97,7 +97,7 @@ Os comandos atuais são registados/atualizados no servidor no arranque. Depois d
 
 ### XP
 
-Cada membro ganha 15 XP por mensagem elegível, no máximo uma vez por minuto, independentemente do canal. Bots, webhooks e outros servidores não contam. O nível é `floor(sqrt(XP / 100))`. A contagem começa quando esta versão entra em execução; mensagens antigas não são contadas. `data/state.json` guarda os pontos e o intervalo entre ganhos. Preserve o volume `/app/data` entre deploys para não perder o ranking.
+Cada membro ganha XP apenas pelo tempo em call elegível, incluindo calls a solo. O nível é `floor(sqrt(XP / 100))`. Mensagens não dão XP. O ficheiro de estado guarda os pontos e as frações de minuto; conserva-o num volume persistente entre deploys para não perder o ranking.
 
 ### Tickets
 
@@ -145,7 +145,7 @@ Um administrador pode executar `/ban` num canal de texto para publicar o aviso e
 
 ### Níveis e XP por call
 
-Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` para consultar XP. Mensagens dão 15 XP com cooldown de 60 segundos. Calls dão 10 XP por minuto com pelo menos dois humanos; bots, canal AFK e membros ensurdecidos não ganham XP. Aprendiz II dá 2× e Mestre II dá 3×. Os nove cargos são acumulados; o bot precisa de Gerir cargos e estar acima deles. Configure as permissões dos cargos no Discord conforme o quadro. XP mantém-se no STATE_FILE; tempo parcial de call reinicia quando o bot reinicia.
+Use `/xp mensagem` (Gerir servidor) para publicar os nove níveis e `/xp ver` para consultar XP. O XP aumenta apenas em call, a 10 XP por minuto (também em calls a solo); bots, canal AFK e membros ensurdecidos não ganham XP. Aprendiz II dá 2× e Mestre II dá 3×. Os nove cargos são acumulados; o bot precisa de Gerir cargos e estar acima deles. Configure as permissões dos cargos no Discord conforme o quadro. XP mantém-se no STATE_FILE; o tempo parcial de call também fica guardado.
 
 ## Logs de atividade
 
@@ -159,7 +159,15 @@ Os comandos de adesão a notificações, os convites por DM à entrada e os logs
 ### Tickets, notificações e XP
 
 - `/painel` publica as opções **Abrir ticket** e **Parceria**. Volta a publicar o painel para apresentar o novo botão. As compras abertas pela loja usam `ticket-utilizador-compra`; parcerias usam `ticket-utilizador-parceria`.
-- Cada novo ticket tem **Assumir ticket** (só suporte) e **Fechar ticket** (só suporte). As compras também têm **Cancelar compra** para o comprador ou a equipa da loja; o cancelamento arquiva a transcrição antes de apagar o canal. A atribuição fica guardada no tópico e mantém-se após reinícios.
+- Cada novo ticket tem **Assumir ticket** (só suporte) e **Fechar ticket** (só suporte). As compras também têm **Cancelar compra** para o comprador ou a equipa da loja; o cancelamento guarda a transcrição antes de apagar o canal. A atribuição fica guardada no tópico e mantém-se após reinícios.
 - Lives: `1568356044131012699`; vídeos: `1567842947238465608`. Os cargos devem ser mencionáveis para receberem os avisos. A atribuição dos cargos é gerida no Discord. Podem ser substituídos por `LIVE_NOTIFICATION_ROLE_ID` e `VIDEO_NOTIFICATION_ROLE_ID`.
 - O quadro de XP mostra os níveis por ordem decrescente, de **Veterano III** até **Aprendiz I**. No arranque, o bot organiza os nove cargos nas posições de XP já existentes (III acima de II e I) e atualiza quadros de níveis seus nas últimas 100 mensagens do canal de níveis. Pode também publicar o quadro atualizado com `/xp mensagem`.
-- O XP continua a ser guardado em `STATE_FILE`. Adicionalmente, o bot cria o canal privado `xp-backup`, visível ao bot e administradores, e guarda uma cópia a cada minuto e ao desligar normalmente. Ao iniciar, recupera o maior XP entre a cópia e o ficheiro local, antes da recuperação mínima pelos cargos. Precisa de **Gerir canais**, **Ver canal**, **Ler histórico**, **Enviar mensagens** e **Anexar ficheiros**. Se a cópia estiver ilegível, não a substitui; regista o erro e mantém a gravação local. Conserva o volume persistente do alojamento: numa falha abrupta sem esse volume, a recuperação remota pode perder o último minuto. XP já perdido antes desta atualização só pode ser recuperado até ao mínimo dos cargos existentes.
+- O XP e as frações de minuto são guardados em `STATE_FILE` a cada minuto e ao desligar normalmente. Sair/voltar à call, trocar de canal e reiniciar não reiniciam o XP. Tempo com o bot desligado não dá XP; uma falha abrupta pode perder apenas o tempo desde a última gravação. Os cargos são acumulados e a recuperação pelos cargos nunca baixa o XP já existente.
+- Os canais `xp-backup` e `arquivo-compras` já não são criados. No arranque, apenas canais com os tópicos exclusivos `precision-xp-checkpoint-v1` e `precision-shop-archive` são removidos. Primeiro importa o maior XP do backup antigo e confirma a gravação; uma falha de leitura/gravação preserva o canal de XP. O arquivo de compras antigo e o respetivo histórico serão apagados conforme pedido. As novas transcrições de compras ficam privadas em `transcripts/` junto do ficheiro de estado e seguem também por DM; não é criado outro canal. Os tickets normais mantêm o canal de transcrições configurado.
+
+### Armazenamento persistente obrigatório no alojamento
+
+- **Docker Compose:** usa o volume `bot-state:/app/data` já definido. Não apagues esse volume.
+- **Railway:** liga um Volume ao serviço do bot com mount path `/app/data`. A variável `RAILWAY_VOLUME_MOUNT_PATH` fornecida pelo Railway é detetada automaticamente. `STATE_FILE` deve ficar dentro desse volume; os caminhos antigos predefinidos são redirecionados para o volume. Sem volume, o bot para com uma mensagem de configuração em vez de voltar a iniciar com XP vazio. O Docker usa o utilizador `node`; se o volume for montado como root e surgir EACCES, configura `RAILWAY_RUN_UID=0` no serviço conforme a documentação do Railway. Não é possível criar/ligar esse volume apenas alterando ficheiros no GitHub.
+- **Outros alojamentos:** aponta `STATE_FILE` para armazenamento persistente do serviço. Um ficheiro dentro de um contentor temporário não sobrevive à substituição desse contentor.
+- Os pontos exatos já perdidos antes desta alteração não podem ser reconstruídos sem um backup; os cargos existentes recuperam apenas o XP mínimo correspondente. O backup antigo é importado, quando disponível, antes de apagar o canal.

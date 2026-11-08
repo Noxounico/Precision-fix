@@ -20,7 +20,7 @@ export function levelsEmbed() {
   return (index > 0 && index % 3 === 0 ? '\n' : '') + '<@&' + id + '> `'+ value + ' XP` - ' + benefit;
  });
  return new EmbedBuilder().setColor(0x5865f2).setTitle('✨ Níveis').setDescription(
-  lines.join('\n') + '\n\nGanhe mais **XP** interagindo no servidor\nPara ver o seu XP digite `/xp ver` no canal #cmds\nTodas as permissões concedidas em níveis menores se mantêm.');
+  lines.join('\n') + '\n\nGanha **XP** pelo tempo em call. O progresso acumula e fica guardado.\nPara ver o seu XP digite `/xp ver` no canal #cmds\nTodas as permissões concedidas em níveis menores se mantêm.');
 }
 export async function publishLevels(interaction) {
  if (!interaction.memberPermissions?.has(P.ManageGuild)) {

@@ -1,32 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Collection, PermissionFlagsBits as P, PermissionsBitField } from 'discord.js';
-import { awardXp, handleXp, leaderboard, levelInfo } from '../src/xp.js';
+import { handleXp, leaderboard, levelInfo } from '../src/xp.js';
 import { handleTickets } from '../src/tickets.js';
 import { registerCommands } from '../src/commands.js';
-import { loadState, saveState } from '../src/state.js';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 const config = { guild: '123', ticketSupportRoles: [] };
 const perms = (...bits) => new PermissionsBitField(bits);
-test('XP: cooldown por membro, bots/webhooks/outro servidor ignorados e persistência', async () => {
-  const file = join(await mkdtemp(join(tmpdir(), 'xp-')), 'state.json');
-  const state = await loadState(file);
-  const msg = { guildId: '123', author: { id: 'user', bot: false }, createdTimestamp: 100000 };
-  const award = m => awardXp(m, config, state, s => saveState(file, s));
-  assert.equal(await award(msg), true);
-  assert.equal(await award({ ...msg, createdTimestamp: 100001 }), false);
-  assert.equal(await award({ ...msg, createdTimestamp: 160000 }), true);
-  for (const patch of [{ guildId: 'other' }, { author: { id: 'bot', bot: true } }, { webhookId: 'hook' }]) {
-    assert.equal(await award({ ...msg, ...patch }), false);
-  }
-  const restored = await loadState(file);
-  assert.deepEqual(restored.xp['123'].user, { xp: 30, lastAwardAt: 160000 });
-  assert.equal(await awardXp({ ...msg, createdTimestamp: 160001 }, config, restored, async () => assert.fail()), false);
-  assert.deepEqual(levelInfo(100), { level: 1, next: 400 });
-});
 test('/xp ver lê XP real e comandos antigos são ignorados', async () => {
   const state = { xp: { '123': { a: { xp: 300 }, b: { xp: 1200 } } } };
   assert.deepEqual(leaderboard(state, '123').map(([id]) => id), ['b', 'a']);

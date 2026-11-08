@@ -1,6 +1,5 @@
-import { multiplier, xpCommand, publishLevels, syncXpRoles } from './xp-levels.js';
+import { xpCommand, publishLevels } from './xp-levels.js';
 import { EmbedBuilder } from 'discord.js';
-import { announceLevel } from './level-announcements.js';
 
 export const xpCommands = [xpCommand];
 export function levelInfo(xp) {
@@ -10,18 +9,6 @@ export function levelInfo(xp) {
 export function leaderboard(state, guildId) {
   return Object.entries(state.xp?.[guildId] || {})
     .sort(([idA, a], [idB, b]) => b.xp - a.xp || idA.localeCompare(idB));
-}
-export async function awardXp(message, config, state, persist) {
-  if (message.guildId !== config.guild || message.author.bot || message.webhookId) return false;
-  const guild = (state.xp ||= {})[config.guild] ||= {};
-  const previous = guild[message.author.id];
-  const now = message.createdTimestamp;
-  if (!Number.isFinite(now) || (previous && now - previous.lastAwardAt < 60000)) return false;
-  guild[message.author.id] = { xp: (previous?.xp || 0) + 15 * multiplier(previous?.xp || 0), lastAwardAt: now };
-  await persist(state);
-  await syncXpRoles(message.member, guild[message.author.id].xp);
-  await announceLevel(message.guild, message.author.id, previous?.xp || 0, guild[message.author.id].xp);
-  return true;
 }
 export async function handleXp(interaction, config, state) {
   if (!interaction.isChatInputCommand() || interaction.commandName !== 'xp') return false;

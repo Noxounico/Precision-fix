@@ -115,10 +115,10 @@ export async function handleTickets(interaction, config) {
     await interaction.channel.edit({ name: `fechado-${owner}`, topic: `precision-${shop ? 'shop' : 'ticket'}-closed:${owner}:${deleteAt}` });
     scheduleTicketDeletion(interaction.channel, deleteAt);
     await interaction.editReply(delivery.dmSent
-      ? 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição enviada para o arquivo e para o privado do autor.'
-      : 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição guardada no arquivo, mas não foi possível enviá-la ao privado do autor (DMs fechadas ou envio recusado).');
+      ? 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição guardada e enviada para o privado do autor.'
+      : 'Ticket fechado. Este canal será apagado em 5 segundos. Transcrição guardada, mas não foi possível enviá-la ao privado do autor (DMs fechadas ou envio recusado).');
     await interaction.message.edit({ components: [] });
-    await interaction.channel.send({ content: '🔒 **Ticket encerrado**\nEste canal será apagado em **5 segundos**. A transcrição foi guardada no arquivo.', allowedMentions: { parse: [] } });
+    await interaction.channel.send({ content: '🔒 **Ticket encerrado**\nEste canal será apagado em **5 segundos**. A transcrição foi guardada.', allowedMentions: { parse: [] } });
   } finally { closing.delete(interaction.channelId); }
   return true;
 }
