@@ -1,8 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
-function card(guild) {
+function card(guild, department = 'Suporte') {
   const embed = new EmbedBuilder().setColor(0xffffff)
-    .setAuthor({ name: `${guild?.name || 'Servidor'} · Suporte` });
+    .setAuthor({ name: `${guild?.name || 'Servidor'} · ${department}` });
   const icon = guild?.iconURL?.({ size: 128 });
   if (icon) embed.setThumbnail(icon);
   return embed;
@@ -17,8 +17,8 @@ export function ticketPanel(guild, banner) {
   if (banner) embed.setImage(banner);
   return embed;
 }
-export function ticketWelcome(guild, owner, roles) {
-  return card(guild).setTitle('O teu atendimento começa aqui')
+export function ticketWelcome(guild, owner, roles, shop = false) {
+  return card(guild, shop ? 'Vendas' : 'Suporte').setTitle(shop ? 'A tua compra começa aqui' : 'O teu atendimento começa aqui')
     .setDescription(`<@${owner}>, bem-vindo/a ao teu ticket.\nConta-nos o que precisas e partilha os detalhes numa só mensagem.`)
     .addFields(
       { name: '◷ Estado', value: 'A aguardar a equipa', inline: true },

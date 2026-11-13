@@ -73,7 +73,7 @@ export async function handleTickets(interaction, config) {
         reason: `Ticket solicitado pelo membro ${interaction.user.id}`,
       });
       await interaction.editReply({ content: `Ticket aberto: <#${channel.id}>.`, allowedMentions: { parse: [] } });
-      const welcome = ticketWelcome(interaction.guild, interaction.user.id, roles);
+      const welcome = ticketWelcome(interaction.guild, interaction.user.id, roles, shop);
       if (shop) welcome.addFields({ name: '🛒 Loja Nox', value: 'Consulta os produtos e faz a tua compra na nossa loja:\n[**Abrir loja Nox**](https://nox-loja-production.up.railway.app/)' });
       await channel.send({ embeds: [welcome],
         components: ticketControls(shop), allowedMentions: { parse: [] } });
