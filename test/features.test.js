@@ -80,6 +80,7 @@ test('compra só permite o cargo da loja, comprador e bot', async () => {
   await handleTickets(i, { ...config, ticketSupportRoles: ['other-staff'] });
   const channel = i.calls.creates[0];
   assert.equal(channel.topic, 'precision-shop:456');
+  assert.equal(i.calls.sends[0].embeds[0].toJSON().fields.at(-1).value.includes('https://nox-loja-production.up.railway.app/'), true);
   assert.deepEqual(channel.permissionOverwrites.map(rule => rule.id), ['123', 'bot', '1567315868344524833', '456']);
 });
 test('/painel requer Gerir servidor; membro comum não publica painel', async () => {
